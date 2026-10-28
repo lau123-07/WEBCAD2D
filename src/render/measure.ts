@@ -21,7 +21,7 @@ const len = (a: P, b: P) => Math.hypot(b.x - a.x, b.y - a.y);
 export const measureSeg = (a: P, p: P): Measure => ({
   lines: [`Largo: ${withU(len(a, p))}`, `Ángulo: ${fmtA(angDeg(a, p))}`],
   labels: [{ p: mid(a, p), text: fmtM(len(a, p)) }],
-  hint: 'Escribí un largo y Enter para usar esa medida exacta'
+  hint: 'Escribí X 2500 (horizontal), Y 3m (vertical) o un largo como 2,5m'
 });
 export const measureRect = (a: P, p: P): Measure => {
   const w = Math.abs(p.x - a.x), h = Math.abs(p.y - a.y);

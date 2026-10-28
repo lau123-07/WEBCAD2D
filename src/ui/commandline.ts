@@ -61,16 +61,48 @@ export function parseNum(v) {
   return parseFloat(v);
 }
 
+/* Medidas con unidad: "2500", "250cm", "2,5m", "0,1km". Se convierten a las unidades del dibujo. */
+const UNIT_MM = { mm: 1, cm: 10, m: 1000, km: 1e6 };
+export const drawingUnitMm = () => ({ 4: 1, 5: 10, 6: 1000 }[app.model && app.model.units] || 1);
+export function parseLength(v: string) {
+  const m = String(v).trim().toLowerCase().match(/^([+-]?(?:\d+(?:[.,]\d+)?|[.,]\d+))\s*(mm|cm|km|m)?$/);
+  if (!m) return null;
+  const n = parseFloat(m[1].replace(',', '.'));
+  if (!isFinite(n)) return null;
+  return m[2] ? n * UNIT_MM[m[2]] / drawingUnitMm() : n;
+}
+const hasUnit = (v: string) => /(mm|cm|km|m)$/i.test(v.trim());
+
 export function parsePoint(v, base) {
   v = v.replace(/\s+/g, '');
+  // X 2500 = horizontal, Y 3m = vertical. Sin signo, va hacia el lado donde está el mouse.
+  const xy = v.match(/^([xXyY])(.+)$/);
+  if (xy && base) {
+    const L = parseLength(xy[2]);
+    if (L !== null) {
+      const horiz = xy[1].toLowerCase() === 'x';
+      let s = L;
+      if (!/^[+-]/.test(xy[2]) && state.world) { const d = horiz ? state.world.x - base.x : state.world.y - base.y; if (d < 0) s = -Math.abs(L); }
+      return horiz ? { x: base.x + s, y: base.y } : { x: base.x, y: base.y + s };
+    }
+  }
   let rel = false;
   if (v.startsWith('@')) { rel = true; v = v.slice(1); if (!v) return state.lastPt ? { ...state.lastPt } : null; }
   const ref = rel ? (state.lastPt || base || { x: 0, y: 0 }) : { x: 0, y: 0 };
-  const num = '(-?(?:\\d+\\.?\\d*|\\.\\d+))';
-  let m = v.match(new RegExp('^' + num + '<' + num + '$'));
-  if (m) { const d = +m[1], a = rad(+m[2]); return { x: ref.x + d * Math.cos(a), y: ref.y + d * Math.sin(a) }; }
-  m = v.match(new RegExp('^' + num + ',' + num + '$'));
-  if (m) return { x: ref.x + +m[1], y: ref.y + +m[2] };
+  // un largo con unidad ("2,5m") es una distancia en la dirección del mouse, no una coordenada
+  if (!rel && base && hasUnit(v)) {
+    const n = parseLength(v);
+    if (n !== null && state.world) {
+      const dir = sub(state.world, base), L = Math.hypot(dir.x, dir.y);
+      if (L < 1e-12) return null;
+      return add(base, mulv(dir, n / L));
+    }
+  }
+  const len = '([+-]?(?:\\d+\\.?\\d*|\\.\\d+)(?:mm|cm|km|m)?)';
+  let m = v.match(new RegExp('^' + len + '<(-?(?:\\d+\\.?\\d*|\\.\\d+))$', 'i'));
+  if (m) { const d = parseLength(m[1]), a = rad(+m[2]); if (d !== null) return { x: ref.x + d * Math.cos(a), y: ref.y + d * Math.sin(a) }; }
+  m = v.match(new RegExp('^' + len + ',' + len + '$', 'i'));
+  if (m) { const dx = parseLength(m[1]), dy = parseLength(m[2]); if (dx !== null && dy !== null) return { x: ref.x + dx, y: ref.y + dy }; }
   const n = parseNum(v);
   if (!rel && base && n !== null && state.world) {
     const dir = sub(state.world, base), L = Math.hypot(dir.x, dir.y);
@@ -91,11 +123,11 @@ export function processInput(v) {
     case 'string': finish(v); return;
     case 'point': {
       const p = parsePoint(v, r.opts.base);
-      if (p) finish(p); else log('Punto no válido. Usá x,y  @dx,dy  @distancia<ángulo, o una distancia.', 'err');
+      if (p) finish(p); else log('Punto no válido. Usá X 2500 (horizontal), Y 3m (vertical), un largo como 2,5m, x,y, @dx,dy o @distancia<ángulo.', 'err');
       return;
     }
     case 'dist': case 'angle': case 'number': {
-      const n = parseNum(v);
+      const n = r.kind === 'angle' ? parseNum(v) : parseLength(v);
       if (n !== null) finish(n); else log('Escribí un número (podés usar coma o punto decimal).', 'err');
       return;
     }

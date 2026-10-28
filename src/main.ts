@@ -42,7 +42,9 @@ $('btnAllOn').addEventListener('click', () => { app.model.layers.forEach(L => L.
 $('fileInput').addEventListener('change', e => { const f = e.target.files[0]; if (f) openFile(f); e.target.value = ''; });
 
 input.addEventListener('keydown', e => {
-  if (e.key === 'Enter' || (e.key === ' ' && !(app.req && app.req.kind === 'string'))) { e.preventDefault(); handleSubmit(); }
+  // la barra espaciadora confirma, como en AutoCAD, salvo después de X o Y ("X 2500") o dentro de un texto
+  const typingXY = /^[xy]\s*$/i.test(input.value) && app.req && ['point', 'dist'].includes(app.req.kind);
+  if (e.key === 'Enter' || (e.key === ' ' && !typingXY && !(app.req && app.req.kind === 'string'))) { e.preventDefault(); handleSubmit(); }
 });
 
 document.addEventListener('keydown', e => {

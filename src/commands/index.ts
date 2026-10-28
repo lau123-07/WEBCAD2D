@@ -62,7 +62,7 @@ export function cmdHelp() {
   log('Anotar y medir: DLI cota lineal, DAL alineada, DRA radio, DDI diámetro, DAN ángulo, H sombreado, DI distancia, AA área. Doble clic en un texto para editarlo.');
   log('Tipos y grosores de línea: en el panel de propiedades. ESCALATL cambia la escala de los trazos; GROSOR muestra u oculta los grosores. Ctrl+C / Ctrl+V copian y pegan.');
   log('Vista y archivo: Z zoom (E/V), ZE ver todo, U deshacer, REHACER, NUEVO, ABRIR, GUARDAR, GUARDARCOMO, EXPORTAR, IMPRIMIR (a escala, con rótulo), AUTOGUARDADO, RECUPERAR.');
-  log('Ayudas: F3 Osnap, F7 grilla, F8 Ortho, F9 Snap (SNAP 50 cambia el paso). Coordenadas: x,y  @dx,dy  @dist<ángulo, o una distancia en la dirección del mouse.');
+  log('Ayudas: F3 Osnap, F7 grilla, F8 Ortho, F9 Snap (SNAP 50 cambia el paso). Medidas exactas: X 2500 = horizontal, Y 3m = vertical (con signo - fuerza izquierda o abajo); un largo con unidad (2,5m, 250cm, 0,1km) va hacia el mouse; también x,y  @dx,dy  @dist<ángulo.');
   log('Mouse: rueda = zoom, arrastrar con la rueda = mover la vista, clic derecho = Enter, Esc = cancelar.');
 }
 

@@ -48,6 +48,8 @@ scripts/
 
 Al dibujar o mover, un cartel junto al cursor muestra largo y ángulo (líneas), ancho y alto (rectángulos), radio y diámetro (círculos) o la distancia (mover, copiar, grips). La medida también aparece sobre el dibujo. F12 o el botón "Medidas" lo prende y apaga. En el rectángulo, la opción D permite escribir ancho y alto exactos.
 
+Medidas exactas al pedir un punto: `X 2500` = horizontal, `Y 3m` = vertical (sin signo va hacia el lado del mouse; con `-` fuerza izquierda o abajo). Se aceptan unidades `mm`, `cm`, `m` y `km`, con coma o punto decimal (`2,5m`, `250cm`). Un largo con unidad sin X/Y va en la dirección del mouse.
+
 ## Autoguardado e impresión
 
 - **Autoguardado:** cada 5 minutos, si hay cambios sin guardar, se guarda una copia dentro del navegador. Al volver a abrir el editor se ofrece recuperarla. `AUTOGUARDADO` cambia los minutos (0 lo desactiva) y `RECUPERAR` la carga cuando quieras. La copia se borra al guardar el DXF.
