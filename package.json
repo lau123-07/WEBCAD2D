@@ -1,0 +1,24 @@
+{
+  "name": "cad-web",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Editor CAD 2D en el navegador (DXF, DWG, PDF e imágenes)",
+  "type": "module",
+  "scripts": {
+    "postinstall": "node scripts/preparar-wasm.mjs",
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@mlightcad/libredwg-web": "0.7.17",
+    "dxf-parser": "1.1.2",
+    "pdfjs-dist": "3.11.174"
+  },
+  "devDependencies": {
+    "typescript": "6.0.3",
+    "vite": "7.3.7",
+    "vite-plugin-singlefile": "2.3.3"
+  }
+}

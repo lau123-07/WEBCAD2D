@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Editor DXF</title>
+</head>
+<body>
+<header>
+  <h1>Editor DXF</h1>
+  <span id="fileName"></span>
+  <button data-cmd="NUEVO" title="Dibujo nuevo vacío">Nuevo</button>
+  <button data-cmd="ABRIR" title="Abrir DXF, DWG, PDF o una imagen (Ctrl+O)">Abrir…</button>
+  <button data-cmd="GUARDAR" title="Guardar en DXF (Ctrl+S)">Guardar</button>
+  <button data-cmd="EXPORTAR" title="Exportar una imagen PNG del dibujo">PNG</button>
+  <button data-cmd="IMPRIMIR" title="Imprimir o guardar como PDF">Imprimir / PDF</button>
+  <span class="sep"></span>
+  <button id="btnUndo" data-cmd="U" title="Deshacer (Ctrl+Z)">Deshacer</button>
+  <button id="btnRedo" data-cmd="REHACER" title="Rehacer (Ctrl+Y)">Rehacer</button>
+  <span class="sep"></span>
+  <button data-cmd="ZE" title="Ver todo el dibujo (doble clic con la rueda)">Ver todo</button>
+  <button data-cmd="EJEMPLO" title="Cargar el dibujo de ejemplo">Ejemplo</button>
+  <input type="file" id="fileInsert" accept=".pdf,.jpg,.jpeg,.png,.webp,.gif,.bmp" hidden>
+  <input type="file" id="fileInput" accept=".dxf,.dwg,.pdf,.jpg,.jpeg,.png,.webp,.gif,.bmp" hidden>
+</header>
+
+<nav id="tools" aria-label="Herramientas">
+  <h3>Dibujo</h3>
+  <button data-cmd="L">Línea <kbd>L</kbd></button>
+  <button data-cmd="PL">Polilínea <kbd>PL</kbd></button>
+  <button data-cmd="REC">Rectángulo <kbd>REC</kbd></button>
+  <button data-cmd="C">Círculo <kbd>C</kbd></button>
+  <button data-cmd="A">Arco <kbd>A</kbd></button>
+  <button data-cmd="T">Texto <kbd>T</kbd></button>
+  <h3>Modificar</h3>
+  <button data-cmd="E">Borrar <kbd>E</kbd></button>
+  <button data-cmd="M">Mover <kbd>M</kbd></button>
+  <button data-cmd="CO">Copiar <kbd>CO</kbd></button>
+  <button data-cmd="RO">Rotar <kbd>RO</kbd></button>
+  <button data-cmd="SC">Escalar <kbd>SC</kbd></button>
+  <button data-cmd="MI">Espejo <kbd>MI</kbd></button>
+  <button data-cmd="O">Desfase <kbd>O</kbd></button>
+  <button data-cmd="TR">Recortar <kbd>TR</kbd></button>
+  <button data-cmd="EX">Alargar <kbd>EX</kbd></button>
+  <button data-cmd="F">Empalme <kbd>F</kbd></button>
+  <button data-cmd="CHA">Chaflán <kbd>CHA</kbd></button>
+  <button data-cmd="X">Descomponer <kbd>X</kbd></button>
+  <h3>Anotar</h3>
+  <button data-cmd="DLI">Cota lineal <kbd>DLI</kbd></button>
+  <button data-cmd="DAL">Cota alineada <kbd>DAL</kbd></button>
+  <button data-cmd="DRA">Cota radio <kbd>DRA</kbd></button>
+  <button data-cmd="DDI">Cota diámetro <kbd>DDI</kbd></button>
+  <button data-cmd="DAN">Cota angular <kbd>DAN</kbd></button>
+  <button data-cmd="H">Sombreado <kbd>H</kbd></button>
+  <h3>Referencia</h3>
+  <button data-cmd="IMAGEN" title="Poner una foto, un escaneo o un PDF de fondo">Imagen / PDF <kbd>IM</kbd></button>
+  <h3>Consultar</h3>
+  <button data-cmd="DI">Distancia <kbd>DI</kbd></button>
+  <button data-cmd="AA">Área <kbd>AA</kbd></button>
+</nav>
+
+<div id="view">
+  <canvas id="main"></canvas>
+  <canvas id="overlay"></canvas>
+  <div id="dropHint">Soltá el archivo (DXF, DWG, PDF o imagen) para abrirlo</div>
+</div>
+
+<aside aria-label="Capas y propiedades">
+  <h2>Capas</h2>
+  <div class="layer-actions">
+    <button id="btnNewLayer">Nueva capa</button>
+    <button id="btnAllOn">Mostrar todas</button>
+  </div>
+  <div class="layer-head"><span title="Capa actual">Act.</span><span title="Visible">Ver</span><span title="Bloqueada">Bloq</span><span></span><span>Nombre</span><span></span><span></span></div>
+  <ul id="layers"></ul>
+  <section id="props">
+    <h2>Propiedades</h2>
+    <div id="propsBody"></div>
+  </section>
+</aside>
+
+<section id="cmd" aria-label="Línea de comandos">
+  <div id="history" aria-live="polite"></div>
+  <div id="cmdrow">
+    <label id="prompt" for="cmdInput">Comando:</label>
+    <input id="cmdInput" autocomplete="off" spellcheck="false">
+  </div>
+</section>
+
+<footer>
+  <span id="coords">X: —  Y: —</span>
+  <button class="tog" id="tgGrid" aria-pressed="false" title="Grilla (F7)">Grilla<span>F7</span></button>
+  <button class="tog" id="tgSnap" aria-pressed="false" title="Forzar el cursor a la grilla (F9)">Snap<span>F9</span></button>
+  <button class="tog" id="tgOrtho" aria-pressed="false" title="Solo horizontal y vertical (F8)">Ortho<span>F8</span></button>
+  <button class="tog" id="tgOsnap" aria-pressed="true" title="Referencias a objetos (F3)">Osnap<span>F3</span></button>
+  <button class="tog" id="tgLw" aria-pressed="true" title="Mostrar los grosores de línea">Grosor</button>
+  <span id="autosaveInfo" title="El editor guarda una copia automática de los cambios"></span>
+  <span id="units"></span>
+  <span id="entCount"></span>
+  <span id="unsupported"></span>
+</footer>
+
+<div id="colorMenu" role="menu"></div>
+<dialog id="textDialog">
+  <form method="dialog">
+    <label for="textDialogInput">Editar texto</label>
+    <textarea id="textDialogInput" rows="3"></textarea>
+    <p id="textDialogHint"></p>
+    <div class="dlg-actions"><button value="cancel">Cancelar</button><button value="ok" class="primary">Aceptar</button></div>
+  </form>
+</dialog>
+<dialog id="plotDialog">
+  <form method="dialog">
+    <h2>Imprimir a escala</h2>
+    <div class="plot-grid">
+      <div class="plot-opts">
+        <label>Papel <select id="prPaper"></select></label>
+        <label>Orientación <select id="prOrient"><option value="h">Horizontal</option><option value="v">Vertical</option></select></label>
+        <label>Escala <select id="prScale"></select></label>
+        <div class="plot-area"><span>Qué imprimir: <b id="prAreaInfo">Todo el dibujo</b></span>
+          <span><button type="button" id="prPick">Elegir ventana…</button> <button type="button" id="prAll">Todo</button></span></div>
+        <label class="chk"><input type="checkbox" id="prMono" checked> Todo en negro</label>
+        <h3>Rótulo</h3>
+        <label>Empresa <input id="prCompany" autocomplete="off"></label>
+        <label>Proyecto <input id="prTitle" autocomplete="off"></label>
+        <label>Plano <input id="prSheet" autocomplete="off" placeholder="Por ejemplo: Planta baja"></label>
+        <label>Dibujó <input id="prDrawnBy" autocomplete="off"></label>
+        <label>Fecha <input id="prDate" autocomplete="off"></label>
+        <label>Lámina <input id="prSheetNo" autocomplete="off"></label>
+      </div>
+      <div class="plot-prev"><canvas id="prPreview" aria-label="Vista previa de la lámina"></canvas><p id="prInfo"></p></div>
+    </div>
+    <p class="hint">En el diálogo de impresión elegí el mismo papel, márgenes "Ninguno" y escala 100 % (no "Ajustar"). Para PDF, elegí "Guardar como PDF".</p>
+    <div class="dlg-actions"><button value="cancel">Cancelar</button><button value="print" class="primary">Imprimir</button></div>
+  </form>
+</dialog>
+<div id="printArea"><img id="printImg" alt="Dibujo para imprimir"></div>
+
+<script type="module" src="/src/main.ts"></script>
+</body>
+</html>
