@@ -1,3 +1,4 @@
+import { drawMeasure } from './measure';
 import { drawGrips } from '../edit/grips';
 import { app } from '../core/app';
 import { FONT, TAU } from '../core/constants';
@@ -51,6 +52,7 @@ export function drawOverlay() {
   octx.stroke();
   if (!pointMode) octx.strokeRect(x - 5, y - 5, 10, 10);
   drawGrips(octx);
+  drawMeasure(octx);
   // referencia a objeto
   if (state.snapPt && pointMode) {
     const s = toScreen(state.snapPt), r = 6;

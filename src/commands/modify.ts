@@ -1,3 +1,4 @@
+import { fmtM, measureMove } from '../render/measure';
 import { app } from '../core/app';
 import { TAU } from '../core/constants';
 import { state } from '../core/state';
@@ -21,7 +22,7 @@ export async function cmdMove(copy) {
   const sel = await getSelection(); if (!sel.length) return;
   const b = await getPt('Precise punto base:'); if (b === 'ENTER') return;
   while (true) {
-    const p = await getPt(copy ? 'Precise segundo punto o <salir>:' : 'Precise segundo punto:', { base: b, preview: q => previewXf(sel, Tm(q.x - b.x, q.y - b.y)) });
+    const p = await getPt(copy ? 'Precise segundo punto o <salir>:' : 'Precise segundo punto:', { base: b, preview: q => previewXf(sel, Tm(q.x - b.x, q.y - b.y)), measure: q => measureMove(b, q) });
     if (p === 'ENTER') break;
     const M = Tm(p.x - b.x, p.y - b.y);
     if (copy) { for (const e of sel) { const c = cloneEnt(e); if (applyXform(c, M)) app.model.entities.push(c); } app.editCount++; requestDraw(); }
@@ -40,7 +41,7 @@ export async function cmdRotate() {
 export async function cmdScale() {
   const sel = await getSelection(); if (!sel.length) return;
   const b = await getPt('Precise punto base:'); if (b === 'ENTER') return;
-  let f = await ask('dist', 'Precise factor de escala (por ejemplo 2 o 0,5) o [Referencia]:', { base: b, keywords: ['R'], preview: p => { const k = dist(b, p); return k > 0 ? previewXf(sel, about(b, Sm(k, k))) : []; } });
+  let f = await ask('dist', 'Precise factor de escala (por ejemplo 2 o 0,5) o [Referencia]:', { base: b, keywords: ['R'], preview: p => { const k = dist(b, p); return k > 0 ? previewXf(sel, about(b, Sm(k, k))) : []; }, measure: p => ({ lines: [`Factor: ${fmtM(dist(b, p))}`] }) });
   if (f === 'ENTER') return;
   if (f === 'R') {
     const r1 = await getPt('Precise primer punto de una medida conocida:'); if (r1 === 'ENTER') return;

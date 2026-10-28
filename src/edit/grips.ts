@@ -1,3 +1,4 @@
+import { measureCircle, measureMove, measureSeg } from '../render/measure';
 /* Grips: los cuadraditos azules en los puntos de lo seleccionado. Se arrastran para estirar o mover. */
 import { arc3 } from '../commands/draw';
 import { app } from '../core/app';
@@ -86,7 +87,9 @@ export function drawGrips(g: CanvasRenderingContext2D) {
 export async function cmdGrip() {
   const g = app.gripPending; app.gripPending = null;
   if (!g) return;
-  const r = await getPt('** ESTIRAR ** Precise punto de estiramiento:', { base: g.p, preview: q => { const c = cloneEnt(g.e); applyGrip(c, g.k, q, g.p); return [c]; } });
+  const r = await getPt('** ESTIRAR ** Precise punto de estiramiento:', { base: g.p, preview: q => { const c = cloneEnt(g.e); applyGrip(c, g.k, q, g.p); return [c]; },
+    measure: q => g.e.type === 'LINE' && (g.k === 'v0' || g.k === 'v1') ? measureSeg(g.e.vertices[g.k === 'v0' ? 1 : 0], q)
+      : g.e.type === 'CIRCLE' && g.k[0] === 'q' ? measureCircle(g.e.center, q) : measureMove(g.p, q) });
   if (r === 'ENTER') return;
   applyGrip(g.e, g.k, r, g.p);
   touched(g.e);

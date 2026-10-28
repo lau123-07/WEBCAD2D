@@ -1,3 +1,5 @@
+import { app } from '../core/app';
+import { measureCircle, measureRect, measureSeg } from '../render/measure';
 import { state } from '../core/state';
 import { angOf, dist, fmt, inArc } from '../geom/math';
 import { mkArc, mkCircle, mkLine, mkPoly, styleNew } from '../model/factory';
@@ -11,7 +13,7 @@ export async function cmdLine() {
   while (true) {
     const kws = made.length >= 2 ? ['C', 'H'] : ['H'];
     const p2 = await getPt(`Precise punto siguiente o [${made.length >= 2 ? 'Cerrar/' : ''}desHacer]:`,
-      { base: p1, keywords: kws, rubber: false, preview: p => [mkLine(p1, p)] });
+      { base: p1, keywords: kws, rubber: false, preview: p => [mkLine(p1, p)], measure: p => measureSeg(p1, p) });
     if (p2 === 'ENTER') break;
     if (p2 === 'C') { addEntity(mkLine(p1, first)); break; }
     if (p2 === 'H') { if (made.length) { const l = made.pop(); removeEntities([l]); p1 = l.vertices[0]; } continue; }
@@ -27,7 +29,7 @@ export async function cmdPline() {
   while (true) {
     const last = pts[pts.length - 1];
     const r = await getPt(`Precise punto siguiente o [${pts.length >= 3 ? 'Cerrar/' : ''}desHacer]:`,
-      { base: last, keywords: ['C', 'H'], rubber: false, preview: p => [mkLine(last, p)] });
+      { base: last, keywords: ['C', 'H'], rubber: false, preview: p => [mkLine(last, p)], measure: p => measureSeg(last, p) });
     if (r === 'ENTER') break;
     if (r === 'C') { if (pts.length >= 3) { e.shape = true; touched(e); break; } continue; }
     if (r === 'H') { if (pts.length > 1) { pts.pop(); sync(); } continue; }
@@ -40,7 +42,19 @@ export const rectPts = (a, b) => [a, { x: b.x, y: a.y }, b, { x: a.x, y: b.y }];
 export async function cmdRect() {
   const a = await getPt('RECTANG Precise primera esquina:');
   if (a === 'ENTER') return;
-  const b = await getPt('Precise esquina opuesta (por ejemplo @500,300):', { base: a, rubber: false, preview: p => [mkPoly(rectPts(a, p), true)] });
+  let b = await getPt('Precise esquina opuesta o [Dimensiones] (por ejemplo @500,300):', { base: a, rubber: false, keywords: ['D'], preview: p => [mkPoly(rectPts(a, p), true)], measure: p => measureRect(a, p) });
+  if (b === 'D') {
+    const w = await ask('number', `Ancho del rectángulo <${fmt(app.recW || state.textH * 20)}>:`);
+    const wv = w === 'ENTER' ? (app.recW || state.textH * 20) : w;
+    const h = await ask('number', `Alto del rectángulo <${fmt(app.recH || wv)}>:`);
+    const hv = h === 'ENTER' ? (app.recH || wv) : h;
+    if (!(wv > 0) || !(hv > 0)) { log('El ancho y el alto tienen que ser mayores que cero.', 'err'); return; }
+    app.recW = wv; app.recH = hv;
+    const corner = p => ({ x: a.x + (p.x >= a.x ? wv : -wv), y: a.y + (p.y >= a.y ? hv : -hv) });
+    const s = await getPt('Hacé clic para elegir hacia qué lado va el rectángulo:', { base: a, rubber: false, preview: p => [mkPoly(rectPts(a, corner(p)), true)], measure: p => measureRect(a, corner(p)) });
+    if (s === 'ENTER') return;
+    b = corner(s);
+  }
   if (b === 'ENTER' || Math.abs(b.x - a.x) < 1e-9 || Math.abs(b.y - a.y) < 1e-9) return;
   addEntity(mkPoly(rectPts(a, b), true));
 }
@@ -48,9 +62,9 @@ export async function cmdRect() {
 export async function cmdCircle() {
   const c = await getPt('CIRCULO Precise punto central:');
   if (c === 'ENTER') return;
-  let r = await ask('dist', `Precise radio o [Diámetro] <${fmt(state.lastR)}>:`, { base: c, keywords: ['D'], preview: p => [mkCircle(c, dist(c, p))] });
+  let r = await ask('dist', `Precise radio o [Diámetro] <${fmt(state.lastR)}>:`, { base: c, keywords: ['D'], preview: p => [mkCircle(c, dist(c, p))], measure: p => measureCircle(c, p) });
   if (r === 'D') {
-    r = await ask('dist', `Precise diámetro <${fmt(state.lastR * 2)}>:`, { base: c, preview: p => [mkCircle(c, dist(c, p) / 2)] });
+    r = await ask('dist', `Precise diámetro <${fmt(state.lastR * 2)}>:`, { base: c, preview: p => [mkCircle(c, dist(c, p) / 2)], measure: p => measureCircle(c, p, true) });
     r = r === 'ENTER' ? state.lastR : r / 2;
   } else if (r === 'ENTER') r = state.lastR;
   if (!(r > 0)) { log('El radio tiene que ser mayor que cero.', 'err'); return; }

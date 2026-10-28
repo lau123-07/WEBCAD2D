@@ -29,6 +29,7 @@ $('tgSnap').addEventListener('click', () => setToggle('snap', !state.snap));
 $('tgOrtho').addEventListener('click', () => setToggle('ortho', !state.ortho));
 
 $('tgLw').addEventListener('click', () => setToggle('lwDisplay', !state.lwDisplay));
+$('tgDyn').addEventListener('click', () => setToggle('dyn', !state.dyn));
 initTextDialog();
 $('tgOsnap').addEventListener('click', () => setToggle('osnap', !state.osnap));
 
@@ -48,6 +49,7 @@ document.addEventListener('keydown', e => {
   const t: any = e.target, k = e.key;
   const isCheck = t.tagName === 'INPUT' && t.type === 'checkbox';
   const inInput = t === input, inOther = !inInput && ((t.tagName === 'INPUT' && !isCheck) || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA');
+  if (k === 'F12') { e.preventDefault(); setToggle('dyn', !state.dyn); return; }
   if (k === 'F3' || k === 'F7' || k === 'F8' || k === 'F9') {
     e.preventDefault();
     setToggle({ F3: 'osnap', F7: 'grid', F8: 'ortho', F9: 'snap' }[k], !state[{ F3: 'osnap', F7: 'grid', F8: 'ortho', F9: 'snap' }[k]]);
