@@ -13,7 +13,7 @@ import { ensureLayer } from '../io/image';
 import { addEntity } from './undo';
 import { requestDraw } from '../render/draw';
 import { drawOverlay } from '../render/overlay';
-import { ask, log, parseLength } from '../ui/commandline';
+import { ask, getPt, log, parseLength } from '../ui/commandline';
 import { fmtM } from '../render/measure';
 import { drawingUnitMm } from '../ui/commandline';
 
@@ -123,31 +123,58 @@ export function xformZone(e, xf) {
   Object.assign(e, L, { l: I.x0 - L.x0, b: I.y0 - L.y0, r: L.x1 - I.x1, t: L.y1 - I.y1 });
 }
 
-/* RETIROS: elegir el rectángulo del terreno y escribir los retiros */
-export async function cmdSetbacks() {
-  const r = await ask('entity', 'RETIROS Designe el rectángulo del terreno:');
-  if (r === 'ENTER') return;
-  const lot = r.e;
-  const v = (lot.type === 'LWPOLYLINE' || lot.type === 'POLYLINE') && lot.shape ? polyVerts(lot) : [];
+/* Rectángulo derecho (hecho con REC) → sus límites, o null */
+function rectBox(e) {
+  const v = (e && (e.type === 'LWPOLYLINE' || e.type === 'POLYLINE') && e.shape) ? polyVerts(e) : [];
+  if (v.length !== 4) return null;
   const xs = v.map(p => p.x), ys = v.map(p => p.y);
-  const axisRect = v.length === 4 && v.every(p => (Math.abs(p.x - Math.min(...xs)) < 1e-6 || Math.abs(p.x - Math.max(...xs)) < 1e-6) && (Math.abs(p.y - Math.min(...ys)) < 1e-6 || Math.abs(p.y - Math.max(...ys)) < 1e-6));
-  if (!axisRect) { log('Por ahora los retiros funcionan con un rectángulo derecho (hecho con REC).', 'warn'); return; }
   const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+  const ok = v.every(p => (Math.abs(p.x - x0) < 1e-6 || Math.abs(p.x - x1) < 1e-6) && (Math.abs(p.y - y0) < 1e-6 || Math.abs(p.y - y1) < 1e-6));
+  return ok ? { x0, y0, x1, y1 } : null;
+}
+
+/* RETIROS: el terreno (rectángulo o dos esquinas) y los retiros (escritos o tomados de un rectángulo ya dibujado) */
+export async function cmdSetbacks() {
+  let lot = null, L = null;
+  const r = await ask('entity', 'RETIROS Designe el rectángulo del terreno o [Puntos] para marcar dos esquinas:', { keywords: ['P'] });
+  if (r === 'ENTER') return;
+  if (r === 'P') {
+    const a = await getPt('Precise una esquina del terreno:'); if (a === 'ENTER') return;
+    const c = await getPt('Precise la esquina opuesta del terreno:', { base: a, rubber: false, preview: p => [{ type: 'LWPOLYLINE', layer: state.curLayer, shape: true, vertices: [a, { x: p.x, y: a.y }, p, { x: a.x, y: p.y }] }] });
+    if (c === 'ENTER') return;
+    L = { x0: Math.min(a.x, c.x), y0: Math.min(a.y, c.y), x1: Math.max(a.x, c.x), y1: Math.max(a.y, c.y) };
+  } else {
+    lot = r.e; L = rectBox(lot);
+    if (!L) { log('Eso no es un rectángulo derecho. Volvé a usar RETIROS y escribí P para marcar dos esquinas del terreno.', 'warn'); return; }
+  }
+  const { x0, y0, x1, y1 } = L;
+  if (x1 - x0 < 1e-9 || y1 - y0 < 1e-9) return;
   const meters = s => parseLength(/(mm|cm|km|m)$/i.test(s.replace(/\s+/g, '')) ? s.replace(/\s+/g, '') : s.replace(/\s+/g, '') + 'm');
-  const askSide = async (name: string) => {
-    while (true) {
-      const s = await ask('string', `Retiro ${name} en metros <0>:`);
-      if (s === 'ENTER') return 0;
-      const n = meters(s);
-      if (n !== null && n >= 0) return n;
-      log('Escribí una medida, por ejemplo 3 o 1,2 (metros) o 120cm.', 'err');
-    }
-  };
-  const l = await askSide('izquierdo'), t = await askSide('de arriba'), rr = await askSide('derecho'), b = await askSide('de abajo');
+  let l = 0, t = 0, rr = 0, b = 0;
+  const first = await ask('string', 'Retiro izquierdo en metros <0>, o [Límite] para hacer clic en el rectángulo límite que ya dibujaste:', { keywords: ['L'] });
+  if (first === 'L') {
+    const q = await ask('entity', 'Hacé clic en el rectángulo límite (la zona donde se puede construir):');
+    if (q === 'ENTER') return;
+    const I = rectBox(q.e);
+    if (!I || I.x0 < x0 - 1e-6 || I.y0 < y0 - 1e-6 || I.x1 > x1 + 1e-6 || I.y1 > y1 + 1e-6) { log('Ese rectángulo no está dentro del terreno.', 'err'); return; }
+    l = I.x0 - x0; b = I.y0 - y0; rr = x1 - I.x1; t = y1 - I.y1;
+  } else {
+    const askSide = async (name: string, pre?: string) => {
+      let s = pre;
+      while (true) {
+        if (s === undefined) s = await ask('string', `Retiro ${name} en metros <0>:`);
+        if (s === 'ENTER') return 0;
+        const n = meters(s);
+        if (n !== null && n >= 0) return n;
+        log('Escribí una medida, por ejemplo 3 o 1,2 (metros) o 120cm.', 'err'); s = undefined;
+      }
+    };
+    l = await askSide('izquierdo', first); t = await askSide('de arriba'); rr = await askSide('derecho'); b = await askSide('de abajo');
+  }
   if (l + rr >= x1 - x0 || t + b >= y1 - y0) { log('Los retiros son más grandes que el terreno.', 'err'); return; }
-  if (!lot.group) lot.group = newGroupId();
+  const group = lot ? (lot.group || (lot.group = newGroupId())) : newGroupId();
   const layer = ensureLayer('RETIROS', 1);
-  addEntity({ type: 'XZONE', layer, colorIndex: 256, group: lot.group, x0, y0, x1, y1, l, t, r: rr, b });
+  addEntity({ type: 'XZONE', layer, colorIndex: 256, group, x0, y0, x1, y1, l, t, r: rr, b });
   const m = n => fmtM(n * drawingUnitMm() / 1000);
   log(`Retiros: izquierda ${m(l)} m, arriba ${m(t)} m, derecha ${m(rr)} m, abajo ${m(b)} m. Lo que invada la franja roja no se va a permitir.`, 'res');
   const bad = violators();

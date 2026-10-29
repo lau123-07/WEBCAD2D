@@ -64,7 +64,7 @@ Hacé clic sobre un objeto y, sin soltar, arrastralo: se mueve al soltar (con Ct
 
 ## Retiros (zona límite)
 
-`RETIROS`: clic en el rectángulo del terreno y escribir el retiro de cada lado (izquierda, arriba, derecha, abajo; en metros, Enter = 0). Se dibuja la franja de retiro en rojo y la línea límite punteada. Lo que invada la franja no se permite (se marca en rojo y se avisa); las cotas y los textos sí. La vista previa se pone roja con el aviso "Invade el retiro". `CONTROLRETIROS` apaga o prende el control. El terreno y su zona quedan agrupados. Al mover, rotar o arrastrar algo hacia el retiro, se frena en el último lugar permitido. La franja se ve siempre en rojo.
+`RETIROS`: clic en el rectángulo del terreno (o `P` para marcar dos esquinas) y escribir el retiro de cada lado (izquierda, arriba, derecha, abajo; en metros, Enter = 0), o `L` para hacer clic en un rectángulo límite ya dibujado y que los calcule solo. Se dibuja la franja de retiro en rojo y la línea límite punteada. Lo que invada la franja no se permite (se marca en rojo y se avisa); las cotas y los textos sí. La vista previa se pone roja con el aviso "Invade el retiro". `CONTROLRETIROS` apaga o prende el control. El terreno y su zona quedan agrupados. Al mover, rotar o arrastrar algo hacia el retiro, se frena en el último lugar permitido. La franja se ve siempre en rojo.
 
 Rotar: con el mouse se engancha en 0°, 90°, 180° y 270° (entre medio gira libre); también se puede escribir cualquier ángulo. En el menú del clic derecho están "Rotar 90°" y "Rotar 180°" (alrededor del centro de lo seleccionado).
 
