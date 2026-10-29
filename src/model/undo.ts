@@ -1,3 +1,4 @@
+import { ZONE_MSG, flashInvalid, violates } from './zones';
 import { app } from '../core/app';
 import { $ } from '../core/dom';
 import { state } from '../core/state';
@@ -45,7 +46,10 @@ export function markDirty() { app.dirty = true; updateTitle(); }
 
 export function updateTitle() { $('fileName').textContent = app.fileName + (app.dirty ? ' (sin guardar)' : ''); document.title = app.fileName + ' · Editor DXF'; }
 
-export function addEntity(e) { app.model.entities.push(e); app.editCount++; requestDraw(); }
+export function addEntity(e) {
+  if (violates(e)) { flashInvalid([e]); log(ZONE_MSG, 'err'); return false; }
+  app.model.entities.push(e); app.editCount++; requestDraw(); return true;
+}
 
 export function removeEntities(list) {
   const s = new Set(list);

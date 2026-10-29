@@ -1,3 +1,4 @@
+import { dragging } from './drag';
 import { measureCircle, measureMove, measureSeg } from '../render/measure';
 /* Grips: los cuadraditos azules en los puntos de lo seleccionado. Se arrastran para estirar o mover. */
 import { arc3 } from '../commands/draw';
@@ -28,6 +29,7 @@ export function gripsOf(e): { p: { x: number; y: number }; k: string }[] {
     case 'SOLID': return (e.points || []).filter(Boolean).map((p, i) => ({ p, k: 'p' + i }));
     case 'XDIM': return [{ p: e.p1, k: 'p1' }, { p: e.p2, k: 'p2' }, { p: e.pos, k: 'pos' }];
     case 'XDIMR': return [{ p: e.pos, k: 'pos' }];
+    case 'XNORTH': return [{ p: e.p, k: 't' }, { p: { x: e.p.x + Math.cos(e.ang) * e.size, y: e.p.y + Math.sin(e.ang) * e.size }, k: 'n' }];
     case 'XDIMA': { const m = e.a0 + arcSpan(e.a0, e.a1) / 2; return [{ p: { x: e.P.x + e.rad * Math.cos(m), y: e.P.y + e.rad * Math.sin(m) }, k: 'pos' }]; }
     default: return [];
   }
@@ -50,6 +52,7 @@ export function applyGrip(e, k: string, np, gp) {
     case 'SOLID': { const p = e.points[+k.slice(1)]; if (p) set(p, np); break; }
     case 'XDIM': set(e[k], np); break;
     case 'XDIMR': set(e.pos, np); break;
+    case 'XNORTH': if (k === 'n') e.ang = Math.atan2(np.y - e.p.y, np.x - e.p.x); break;
     case 'XDIMA': { const r = dist(e.P, np); if (r > 0) e.rad = r; break; }
   }
 }
@@ -69,7 +72,7 @@ export function gripAt(sx: number, sy: number) {
 }
 
 export function drawGrips(g: CanvasRenderingContext2D) {
-  if (app.running || !state.sel.size) return;
+  if (app.running || !state.sel.size || dragging()) return;
   const hov = state.mouse ? gripAt(state.mouse.x, state.mouse.y) : null;
   let n = 0;
   for (const e of state.sel) {
@@ -87,7 +90,7 @@ export function drawGrips(g: CanvasRenderingContext2D) {
 export async function cmdGrip() {
   const g = app.gripPending; app.gripPending = null;
   if (!g) return;
-  const r = await getPt('** ESTIRAR ** Precise punto de estiramiento:', { base: g.p, preview: q => { const c = cloneEnt(g.e); applyGrip(c, g.k, q, g.p); return [c]; },
+  const r = await getPt('** ESTIRAR ** Precise punto de estiramiento:', { base: g.p, ghost: true, rubber: false, preview: q => { const c = cloneEnt(g.e); applyGrip(c, g.k, q, g.p); return [c]; },
     measure: q => g.e.type === 'LINE' && (g.k === 'v0' || g.k === 'v1') ? measureSeg(g.e.vertices[g.k === 'v0' ? 1 : 0], q)
       : g.e.type === 'CIRCLE' && g.k[0] === 'q' ? measureCircle(g.e.center, q) : measureMove(g.p, q) });
   if (r === 'ENTER') return;

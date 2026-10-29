@@ -59,7 +59,7 @@ function serialize() {
   const data = {
     v: 1, time: Date.now(), name: app.fileName,
     model: { layers: [...m.layers.values()], entities: m.entities, blocks: m.blocks, linetypes: [...(m.linetypes || new Map()).values()],
-      units: m.units, ltscale: m.ltscale, skipped: m.skipped, images }
+      units: m.units, ltscale: m.ltscale, dimUnit: m.dimUnit, dimTick: m.dimTick, dimShowUnit: m.dimShowUnit, skipped: m.skipped, images }
   };
   return JSON.stringify(data, (k, v) => CACHE.has(k) ? undefined : v);
 }
@@ -74,7 +74,7 @@ function deserialize(text: string) {
   return {
     name: d.name, time: d.time,
     model: { layers: new Map(m.layers.map(L => [L.name, L])), entities: m.entities, blocks: m.blocks || {},
-      linetypes: new Map((m.linetypes || []).map(t => [t.name, t])), units: m.units, ltscale: m.ltscale, skipped: m.skipped || {}, images }
+      linetypes: new Map((m.linetypes || []).map(t => [t.name, t])), units: m.units, ltscale: m.ltscale, dimUnit: m.dimUnit, dimTick: m.dimTick, dimShowUnit: m.dimShowUnit, skipped: m.skipped || {}, images }
   };
 }
 

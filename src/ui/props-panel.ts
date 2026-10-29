@@ -1,3 +1,5 @@
+import { tickOf } from '../model/xdim';
+import { log } from './commandline';
 import { app } from '../core/app';
 import { ACI, ACI_NAMES } from '../core/constants';
 import { $ } from '../core/dom';
@@ -10,7 +12,7 @@ import { LW_LIST, allLinetypes, lwLabel } from '../model/linetypes';
 import { HATCH_PATTERNS, makeHatchLines, rescaleHatch } from '../model/hatch';
 import { fmt } from '../geom/math';
 
-export const TYPE_NAMES = { LINE: 'línea', LWPOLYLINE: 'polilínea', POLYLINE: 'polilínea', CIRCLE: 'círculo', ARC: 'arco', TEXT: 'texto', MTEXT: 'texto', INSERT: 'bloque', DIMENSION: 'cota', XDIM: 'cota', ELLIPSE: 'elipse', SPLINE: 'spline', SOLID: 'sólido', POINT: 'punto', '3DFACE': 'cara', XIMAGE: 'imagen', HATCH: 'sombreado', XDIMR: 'cota', XDIMA: 'cota' };
+export const TYPE_NAMES = { LINE: 'línea', LWPOLYLINE: 'polilínea', POLYLINE: 'polilínea', CIRCLE: 'círculo', ARC: 'arco', TEXT: 'texto', MTEXT: 'texto', INSERT: 'bloque', DIMENSION: 'cota', XDIM: 'cota', ELLIPSE: 'elipse', SPLINE: 'spline', SOLID: 'sólido', POINT: 'punto', '3DFACE': 'cara', XIMAGE: 'imagen', HATCH: 'sombreado', XDIMR: 'cota', XDIMA: 'cota', XZONE: 'zona de retiros', XNORTH: 'rosa de los vientos' };
 
 export function renderProps() {
   const box = $('propsBody'); box.textContent = '';
@@ -44,6 +46,11 @@ export function renderProps() {
       mkSelect('Grosor', lwOpts(false), String(L.lw ?? -3), v => { edit(() => { L.lw = +v; }); requestDraw(); });
     }
     mkNumber('Escala tipos', app.model.ltscale || 1, v => { app.model.ltscale = v; requestDraw(); });
+    mkSelect('Cotas en', [['0', 'Unidades del dibujo'], ['6', 'Metros (37,50)'], ['5', 'Centímetros (3750,0)'], ['4', 'Milímetros (37500)']], String(app.model.dimUnit || 0), v => { app.model.dimUnit = +v; requestDraw(); });
+    mkSelect('Unidad en cotas', [['1', 'Mostrar (14000 mm)'], ['0', 'Ocultar (14000)']], app.model.dimShowUnit === false ? '0' : '1', v => { app.model.dimShowUnit = v === '1'; requestDraw(); });
+    mkNumber('Altura cotas', state.dimH || state.textH * 0.8, v => { state.dimH = v; log(`Las cotas nuevas se van a hacer con texto de ${fmt(v)}.`); });
+    mkNumber('Trazos de cota', app.model.dimTick || (state.dimH || state.textH * 0.8) * 0.35, v => { edit(() => { app.model.dimTick = v; }); requestDraw(); log(`Trazos de todas las cotas: ${fmt(v)} (salvo las que tengan un tamaño propio).`, 'res'); });
+    mkNumber('Altura textos', state.textH, v => { state.textH = v; log(`Los textos nuevos se van a hacer de ${fmt(v)} de alto.`); });
     return;
   }
   const types = {}; sel.forEach(e => { const t = TYPE_NAMES[e.type] || e.type.toLowerCase(); types[t] = (types[t] || 0) + 1; });
@@ -77,6 +84,30 @@ export function renderProps() {
     if (!v) return;
     edit(() => sel.forEach(e => { e.lineweight = +v; })); app.editCount++; requestDraw(); renderProps();
   });
+  const dims = sel.filter(e => e.type === 'XDIM' || e.type === 'XDIMR' || e.type === 'XDIMA');
+  if (dims.length && dims.length === sel.length) {
+    mkNumber('Altura texto', dims[0].h, v => {
+      edit(() => dims.forEach(d => { d.h = v; dirtyCache(d); }));
+      state.dimH = v; app.editCount++; requestDraw(); renderProps();
+      log(`Altura del texto de ${dims.length > 1 ? 'las cotas' : 'la cota'}: ${fmt(v)}. Las cotas nuevas también se van a hacer de ese tamaño.`, 'res');
+    });
+  }
+  if (dims.length && dims.length === sel.length) {
+    mkNumber('Trazos', tickOf(dims[0]), v => {
+      edit(() => dims.forEach(d => { d.tick = v; dirtyCache(d); }));
+      app.editCount++; requestDraw(); renderProps();
+      log(`Trazos de ${dims.length > 1 ? 'las cotas' : 'la cota'}: ${fmt(v)}.`, 'res');
+    });
+  }
+  const texts = sel.filter(e => e.type === 'TEXT' || e.type === 'MTEXT');
+  if (texts.length && texts.length === sel.length) {
+    const t0 = texts[0];
+    mkNumber('Altura', t0.type === 'TEXT' ? t0.textHeight : t0.height, v => {
+      edit(() => texts.forEach(t => { if (t.type === 'TEXT') t.textHeight = v; else t.height = v; dirtyCache(t); }));
+      state.textH = v; app.editCount++; requestDraw(); renderProps();
+      log(`Altura del texto: ${fmt(v)}.`, 'res');
+    });
+  }
   const hatches = sel.filter(e => e.type === 'HATCH');
   if (hatches.length && hatches.length === sel.length) {
     const pat = same(hatches.map(h => h.pattern || ''));

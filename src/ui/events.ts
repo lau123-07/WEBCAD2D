@@ -1,3 +1,4 @@
+import { cancelDrag } from '../edit/drag';
 import { app } from '../core/app';
 import { $, ov } from '../core/dom';
 import { state } from '../core/state';
@@ -21,8 +22,10 @@ export function setToggle(name, on) {
 
 export function escape() {
   closeColorMenu();
+  cancelDrag();
   if (app.winStart) { app.winStart = null; drawOverlay(); return; }
   if (app.req || app.running) { cancelAll(); return; }
+  app.lxLine = null; // Esc corta la cadena de LX / LY
   clearSel();
 }
 

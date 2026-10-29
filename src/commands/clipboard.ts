@@ -1,3 +1,4 @@
+import { regroup } from '../model/groups';
 /* Copiar (Ctrl+C) y pegar (Ctrl+V), también entre dibujos y ventanas distintas */
 import { app } from '../core/app';
 import { state } from '../core/state';
@@ -41,13 +42,13 @@ export async function cmdPaste() {
   data = data || app.clipboard;
   if (!data || !data.ents || !data.ents.length) { log('No hay nada copiado todavía. Seleccioná objetos y apretá Ctrl+C.', 'warn'); return; }
   const move = q => Tm(q.x - data.base.x, q.y - data.base.y);
-  const p = await getPt('Precise punto de inserción:', { preview: q => data.ents.slice(0, 300).map(e => { const c = cloneEnt(e); applyXform(c, move(q)); return c; }) });
+  const p = await getPt('Precise punto de inserción:', { ghost: true, preview: q => data.ents.slice(0, 300).map(e => { const c = cloneEnt(e); applyXform(c, move(q)); return c; }) });
   if (p === 'ENTER') return;
   for (const [n, b] of Object.entries(data.blocks || {})) if (!app.model.blocks[n]) app.model.blocks[n] = b;
   for (const L of data.layers || []) if (!app.model.layers.has(L.name)) app.model.layers.set(L.name, L);
   for (const lt of data.linetypes || []) if (!app.model.linetypes.has(lt.name)) app.model.linetypes.set(lt.name, lt);
   const M = move(p);
-  for (const e of data.ents) { const c = cloneEnt(e); applyXform(c, M); app.model.entities.push(c); }
+  app.model.entities.push(...regroup(data.ents.map(e => { const c = cloneEnt(e); applyXform(c, M); return c; })));
   app.editCount++; requestDraw(); renderLayers();
   log(`${data.ents.length} objeto(s) pegado(s).`, 'res');
 }

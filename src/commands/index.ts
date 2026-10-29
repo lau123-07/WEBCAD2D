@@ -1,3 +1,9 @@
+import { cmdRotateQuick } from './modify';
+import { cmdNorth } from '../model/north';
+import { restore as restoreSnap } from '../model/undo';
+import { ZONE_MSG, cmdSetbacks, cmdZoneToggle, flashInvalid, violators } from '../model/zones';
+import { cloneEnt } from '../model/transform';
+import { cmdAutoDims, cmdLineXY } from './line-xy';
 import { cmdPlot } from '../ui/plot-dialog';
 import { cmdAutosave, cmdRecover } from '../io/autosave';
 import { setToggle } from '../ui/events';
@@ -56,6 +62,8 @@ export async function cmdSnap(args) {
 }
 
 export function cmdHelp() {
+  log('Rectángulo con medida: REC LX 14000MM LY 37000MM (cualquier orden; sin unidad = metros).');
+  log('Líneas con medida: LX 37,5M = horizontal de 37,5 m, LY 40M = vertical de 40 m (sin unidad = metros; con - va a la izquierda o abajo). Seguidas, cada una arranca donde terminó la anterior.');
   log('Dibujo: L línea, PL polilínea, REC rectángulo, C círculo, A arco, T texto.');
   log('Modificar: E borrar, M mover, CO copiar, RO rotar, SC escalar, MI espejo, O desfase, TR recortar, EX alargar, F empalme, CHA chaflán, X descomponer. Grips: seleccioná y arrastrá los cuadraditos azules.');
   log('Referencia: IMAGEN inserta una foto, un escaneo o un PDF de fondo. SC con la opción R pone algo a escala usando una medida conocida.');
@@ -68,7 +76,7 @@ export function cmdHelp() {
 
 export const COMMANDS = {
   LINEA: { run: cmdLine, edit: true, tb: 'L' }, POLILINEA: { run: cmdPline, edit: true, tb: 'PL' },
-  RECTANG: { run: cmdRect, edit: true, tb: 'REC' }, CIRCULO: { run: cmdCircle, edit: true, tb: 'C' },
+  RECTANG: { run: args => cmdRect(args), edit: true, tb: 'REC' }, CIRCULO: { run: cmdCircle, edit: true, tb: 'C' },
   ARCO: { run: cmdArc, edit: true, tb: 'A' }, TEXTO: { run: cmdText, edit: true, tb: 'T' },
   BORRA: { run: cmdErase, edit: true, sel: true, tb: 'E' }, DESPLAZA: { run: () => cmdMove(false), edit: true, sel: true, tb: 'M' },
   COPIA: { run: () => cmdMove(true), edit: true, sel: true, tb: 'CO' }, GIRA: { run: cmdRotate, edit: true, sel: true, tb: 'RO' },
@@ -84,6 +92,12 @@ export const COMMANDS = {
   REJILLA: { run: () => setToggle('grid', !state.grid) }, SNAP: { run: cmdSnap },
   ORTHO: { run: () => setToggle('ortho', !state.ortho) }, OSNAP: { run: () => setToggle('osnap', !state.osnap) },
   IMAGEN: { run: cmdImage, edit: true, tb: 'IMAGEN' },
+  COTASAUTO: { run: () => cmdAutoDims() },
+  ROTAR90: { run: () => cmdRotateQuick(90), edit: true, sel: true }, ROTAR180: { run: () => cmdRotateQuick(180), edit: true, sel: true }, 'ROTAR-90': { run: () => cmdRotateQuick(-90), edit: true, sel: true },
+  NORTE: { run: cmdNorth, edit: true, tb: 'NORTE' },
+  RETIROS: { run: cmdSetbacks, edit: true, noZone: true }, CONTROLRETIROS: { run: () => cmdZoneToggle() },
+  DESAGRUPAR: { run: cmdUngroup, edit: true, sel: true },
+  LX: { run: args => cmdLineXY('X', args), edit: true, tb: 'LX' }, LY: { run: args => cmdLineXY('Y', args), edit: true, tb: 'LY' },
   EMPALME: { run: cmdFillet, edit: true, tb: 'F' }, CHAFLAN: { run: cmdChamfer, edit: true, tb: 'CHA' },
   ACOTARADIO: { run: () => cmdDimRadial(false), edit: true, tb: 'DRA' }, ACOTADIAMETRO: { run: () => cmdDimRadial(true), edit: true, tb: 'DDI' },
   ACOTAANGULO: { run: cmdDimAngular, edit: true, tb: 'DAN' }, SOMBREADO: { run: cmdHatch, edit: true, tb: 'H' },
@@ -107,26 +121,35 @@ export const ALIASES = {
   DRA: 'ACOTARADIO', DIMRADIUS: 'ACOTARADIO', DDI: 'ACOTADIAMETRO', DIMDIAMETER: 'ACOTADIAMETRO', DAN: 'ACOTAANGULO', DIMANGULAR: 'ACOTAANGULO',
   H: 'SOMBREADO', BH: 'SOMBREADO', HATCH: 'SOMBREADO', SOMBREA: 'SOMBREADO', PASTECLIP: 'PEGAR', PASTE: 'PEGAR',
   LTSCALE: 'ESCALATL', LTS: 'ESCALATL', LWDISPLAY: 'GROSOR', LWD: 'GROSOR',
+  UNGROUP: 'DESAGRUPAR', NORTH: 'NORTE', BRUJULA: 'NORTE', 'BRÚJULA': 'NORTE', ROSA: 'NORTE', RETIRO: 'RETIROS', LIMITE: 'RETIROS', 'LÍMITE': 'RETIROS', SETBACK: 'RETIROS',
   LA: 'CAPA', LAYER: 'CAPA', IM: 'IMAGEN', IMAGE: 'IMAGEN', IMPORTAR: 'IMAGEN', PDFIMPORT: 'IMAGEN', IMAGEATTACH: 'IMAGEN', HELP: 'AYUDA', '?': 'AYUDA'
 };
 
 export const tick = () => new Promise(r => setTimeout(r, 0));
 
 export async function runCommand(raw) {
-  const parts = raw.trim().split(/\s+/), name = parts[0].toUpperCase(), key = ALIASES[name] || name, C = COMMANDS[key];
+  let parts = raw.trim().split(/\s+/);
+  const glued = parts[0].match(/^(L[XY])([-+]?[\d.,].*)$/i);
+  if (glued) parts = [glued[1], glued[2], ...parts.slice(1)];
+  const name = parts[0].toUpperCase(), key = ALIASES[name] || name, C = COMMANDS[key];
   if (!C) { log(`Comando desconocido "${name}". Escribí AYUDA para ver la lista.`, 'err'); return; }
   if (app.running) { cancelAll(); await tick(); }
   if (!app.model) return;
   log('Comando: ' + name, 'ok');
-  app.lastCmd = name; app.running = key;
+  app.prevCmd = app.lastCmd; app.lastCmd = name; app.running = key;
   document.querySelectorAll<HTMLElement>('#tools button').forEach(b => b.classList.toggle('active', b.dataset.cmd === C.tb));
   const snap = C.edit ? snapshot() : null;
+  const zoneBefore = C.edit && !C.noZone ? new Set(violators()) : null;
   try { await C.run(parts.slice(1)); }
   catch (err) { if (err === CANCEL) log('*Cancelar*'); else { console.error(err); log('Error: ' + (err.message || err), 'err'); } }
   finally {
     app.running = null;
     if (app.req) { app.req = null; setPrompt('Comando:'); }
-    if (snap && app.editCount !== snap.count) { pushUndo(snap); updateCount(); renderLayers(); }
+    if (snap && app.editCount !== snap.count) {
+      const bad = zoneBefore ? violators().filter(e => !zoneBefore.has(e)) : [];
+      if (bad.length) { const marks = bad.map(e => cloneEnt(e)); restoreSnap(snap); flashInvalid(marks); log(ZONE_MSG, 'err'); }
+      else { pushUndo(snap); updateCount(); renderLayers(); }
+    }
     if (C.sel) clearSel();
     document.querySelectorAll('#tools button.active').forEach(b => b.classList.remove('active'));
     renderProps(); drawOverlay();
@@ -138,4 +161,11 @@ async function cmdLtscale() {
   if (v === 'ENTER') return;
   if (!(v > 0)) { log('La escala tiene que ser mayor que cero.', 'err'); return; }
   app.model.ltscale = v; _rd(); log(`Escala de tipos de línea: ${fmt(v)}.`);
+}
+
+async function cmdUngroup() {
+  const sel = [...state.sel].filter(e => e.group);
+  if (!sel.length) { log('Lo seleccionado no está agrupado.'); return; }
+  sel.forEach(e => { delete e.group; }); app.editCount++;
+  log(`Desagrupado: ahora ${sel.length} objetos se pueden mover por separado.`, 'res');
 }

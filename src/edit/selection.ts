@@ -1,3 +1,4 @@
+import { expandGroups } from '../model/groups';
 import { app } from '../core/app';
 import { TAU } from '../core/constants';
 import { state } from '../core/state';
@@ -70,6 +71,7 @@ export function primTouchesRect(q, r) {
 }
 
 export function setSel(list, mode) {
+  list = expandGroups(list);
   if (mode === 'remove') list.forEach(e => state.sel.delete(e));
   else list.forEach(e => state.sel.add(e));
   requestDraw(); renderProps(); drawOverlay();

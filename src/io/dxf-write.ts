@@ -1,3 +1,4 @@
+import { inner } from '../model/zones';
 import { earClip, hatchSegs } from '../model/hatch';
 import { allLinetypes } from '../model/linetypes';
 import { app } from '../core/app';
@@ -25,7 +26,7 @@ export function writeDXF() {
   const usedLt = new Set(['CONTINUOUS']);
   const pendingBlocks = [];
   let hatchN = 0;
-  const expand = list => list.flatMap(e => (e.type === 'DIMENSION' || e.type === 'XDIM' || e.type === 'XDIMR' || e.type === 'XDIMA') ? expand(explodeEnt(e) || []) : [e]);
+  const expand = list => list.flatMap(e => (e.type === 'DIMENSION' || e.type === 'XDIM' || e.type === 'XDIMR' || e.type === 'XDIMA' || e.type === 'XNORTH') ? expand(explodeEnt(e) || []) : [e]);
   const writeEnt = e => {
     const lay = e.layer ?? '0'; usedLayers.add(lay);
     const base = () => {
@@ -41,6 +42,7 @@ export function writeDXF() {
       g(0, 'SEQEND'); g(8, lay);
     };
     switch (e.type) {
+      case 'XZONE': { const I = inner(e); poly([{ x: I.x0, y: I.y0 }, { x: I.x1, y: I.y0 }, { x: I.x1, y: I.y1 }, { x: I.x0, y: I.y1 }], true); break; }
       case 'HATCH': {
         // R12 no tiene sombreados: se guardan como un bloque anónimo con sus líneas (igual que AutoCAD R12)
         const name = '*X' + (++hatchN), content = [];

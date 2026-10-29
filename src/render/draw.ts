@@ -1,3 +1,6 @@
+import { northEnts } from '../model/north';
+import { drawZone } from '../model/zones';
+import { dragging } from '../edit/drag';
 import { drawOverlay } from './overlay';
 import { app } from '../core/app';
 import { FONT, TAU } from '../core/constants';
@@ -41,7 +44,8 @@ function drawMain() {
   setWorld(ctx);
   drawList(app.model.entities, null, null, 0);
   ctx.globalAlpha = 1;
-  if (state.sel.size) {
+  // mientras se mueve o copia, el original se ve normal: lo punteado es solo dónde va a quedar
+  if (state.sel.size && !(app.req && app.req.opts.ghost) && !dragging()) {
     for (const e of state.sel) {
       const st = entityStyle(e, null, null);
       if (!st) continue;
@@ -133,6 +137,8 @@ export function drawEntity(e, st, depth, override) {
     case 'XDIM': case 'XDIMR': case 'XDIMA': for (const s of xdimEnts(e)) drawEntity(s, st, depth, override); break;
     case 'XIMAGE': drawImageEnt(e, rgb(st.color), override); break;
     case 'HATCH': drawHatch(e, rgb(st.color), override); break;
+    case 'XNORTH': for (const s of northEnts(e)) drawEntity(s, st, depth, override); break;
+    case 'XZONE': drawZone(app.G, e, rgb(st.color), override, drawText); break;
   }
 }
 

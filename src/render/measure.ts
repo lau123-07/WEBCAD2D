@@ -1,3 +1,4 @@
+import { bearing, hasNorth } from '../model/north';
 /* Entrada dinámica: medidas en vivo junto al cursor y sobre lo que se está dibujando */
 import { app } from '../core/app';
 import { UNITS } from '../core/constants';
@@ -19,7 +20,7 @@ const mid = (a: P, b: P) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
 const len = (a: P, b: P) => Math.hypot(b.x - a.x, b.y - a.y);
 
 export const measureSeg = (a: P, p: P): Measure => ({
-  lines: [`Largo: ${withU(len(a, p))}`, `Ángulo: ${fmtA(angDeg(a, p))}`],
+  lines: [`Largo: ${withU(len(a, p))}`, `Ángulo: ${fmtA(angDeg(a, p))}`, ...(hasNorth() && len(a, p) > 0 ? [(b => `Orientación: ${b.name} (${fmtA(b.deg)})`)(bearing(Math.atan2(p.y - a.y, p.x - a.x)))] : [])],
   labels: [{ p: mid(a, p), text: fmtM(len(a, p)) }],
   hint: 'Escribí X 2500 (horizontal), Y 3m (vertical) o un largo como 2,5m'
 });
@@ -75,4 +76,13 @@ export function drawMeasure(g: CanvasRenderingContext2D) {
   lines.forEach((t, i) => g.fillText(t, x + 8, y + 18 + i * lh));
   if (hint) { g.font = '11px "Segoe UI", Arial, sans-serif'; g.fillStyle = '#8a939d'; g.fillText(hint, x + 8, y + 18 + lines.length * lh); }
   g.restore();
+}
+
+/* Cartel de distancia mientras se arrastra con el mouse */
+export function drawDragMeasure(g: CanvasRenderingContext2D, from: P, to: P) {
+  if (!state.dyn || !state.mouse) return;
+  const saveReq = app.req;
+  app.req = { kind: 'point', opts: { measure: () => measureMove(from, to) } };
+  const w = state.world; state.world = to;
+  try { drawMeasure(g); } finally { app.req = saveReq; state.world = w; }
 }

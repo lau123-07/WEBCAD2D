@@ -21,7 +21,7 @@ export function loadModel(m, name, announce) {
   zoomExtents();
   const b = computeBounds();
   const span = b ? Math.max(b.maxX - b.minX, b.maxY - b.minY) : (m.units === 6 ? 10 : m.units === 5 ? 1000 : 10000);
-  state.textH = nice(span / 45); state.lastR = nice(span / 20); state.offD = nice(span / 60);
+  state.textH = nice(span / 45); state.dimH = 0; state.lastR = nice(span / 20); state.offD = nice(span / 60);
   state.snapStep = nice(span / 100);
   if (!m.ltscale) m.ltscale = nice(span / (150 * 12.7));
   app.hatchScale = nice(span / 120 / 3.175);

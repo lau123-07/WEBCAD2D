@@ -1,3 +1,4 @@
+import { northEnts } from './north';
 import { app } from '../core/app';
 import { ellipsePts, splinePoints } from '../geom/curves';
 import { I, mul, xf } from '../geom/math';
@@ -32,6 +33,8 @@ export function entPoints(e, m, lay, depth, b, vis) {
     }
     case 'XDIM': case 'XDIMR': case 'XDIMA': xdimEnts(e).forEach(s => entPoints(s, m, lay, depth, b, vis)); break;
     case 'XIMAGE': imageCorners(e).forEach(A); break;
+    case 'XNORTH': northEnts(e).forEach(s => entPoints(s, m, lay, depth, b, vis)); break;
+    case 'XZONE': A({ x: e.x0, y: e.y0 }); A({ x: e.x1, y: e.y1 }); break;
     case 'HATCH': (e.loops || []).forEach(lp => lp.forEach(A)); break;
   }
 }

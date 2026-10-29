@@ -1,3 +1,5 @@
+import { clampPath } from '../model/zones';
+import { regroup } from '../model/groups';
 import { fmtM, measureMove } from '../render/measure';
 import { app } from '../core/app';
 import { TAU } from '../core/constants';
@@ -22,10 +24,14 @@ export async function cmdMove(copy) {
   const sel = await getSelection(); if (!sel.length) return;
   const b = await getPt('Precise punto base:'); if (b === 'ENTER') return;
   while (true) {
-    const p = await getPt(copy ? 'Precise segundo punto o <salir>:' : 'Precise segundo punto:', { base: b, preview: q => previewXf(sel, Tm(q.x - b.x, q.y - b.y)), measure: q => measureMove(b, q) });
-    if (p === 'ENTER') break;
+    // si choca con el retiro, se frena en el último lugar permitido
+    const stop = q => { const t = clampPath(k => previewXf(sel, Tm((q.x - b.x) * k, (q.y - b.y) * k))); return { x: b.x + (q.x - b.x) * t, y: b.y + (q.y - b.y) * t }; };
+    const p0 = await getPt(copy ? 'Precise segundo punto o <salir>:' : 'Precise segundo punto:', { base: b, ghost: true, rubber: false, preview: q => { const s = stop(q); return previewXf(sel, Tm(s.x - b.x, s.y - b.y)); }, measure: q => measureMove(b, stop(q)) });
+    if (p0 === 'ENTER') break;
+    const p = stop(p0);
+    if (dist(p, p0) > 1e-6) log('Se frenó al tocar el retiro.', 'warn');
     const M = Tm(p.x - b.x, p.y - b.y);
-    if (copy) { for (const e of sel) { const c = cloneEnt(e); if (applyXform(c, M)) app.model.entities.push(c); } app.editCount++; requestDraw(); }
+    if (copy) { const cs = regroup(sel.map(e => { const c = cloneEnt(e); return applyXform(c, M) ? c : null; }).filter(Boolean)); app.model.entities.push(...cs); app.editCount++; requestDraw(); }
     else { applyAll(sel, M); break; }
   }
 }
@@ -33,15 +39,37 @@ export async function cmdMove(copy) {
 export async function cmdRotate() {
   const sel = await getSelection(); if (!sel.length) return;
   const b = await getPt('Precise punto base:'); if (b === 'ENTER') return;
-  const a = await ask('angle', 'Precise ángulo de rotación (grados, antihorario):', { base: b, preview: p => previewXf(sel, about(b, Rm(angOf(b, p)))) });
+  const a = await ask('angle', 'Precise ángulo: movelo con el mouse (se engancha en 0°, 90°, 180°, 270°) o escriba el ángulo [90/180/270]:',
+    { base: b, ghost: true, angleSnap: snapAngle, preview: p => previewXf(sel, about(b, Rm(rad(rotStop(sel, b, signedDeg(snapAngle(mouseDeg(b, p)))))))),
+      measure: p => ({ lines: [`Ángulo: ${fmt(rotStop(sel, b, signedDeg(snapAngle(mouseDeg(b, p)))))}°`] }) });
   if (a === 'ENTER') return;
-  applyAll(sel, about(b, Rm(rad(a))));
+  const want = signedDeg(a), fin = rotStop(sel, b, want);
+  if (Math.abs(fin - want) > 1e-6) log(`Se frenó en ${fmt(fin)}° al tocar el retiro.`, 'warn');
+  applyAll(sel, about(b, Rm(rad(fin))));
+}
+
+/* Ayudas para rotar: enganche cada 90°, ángulo con signo (-180 a 180) y freno contra el retiro */
+const mouseDeg = (b, p) => { const d = Math.atan2(p.y - b.y, p.x - b.x) * 180 / Math.PI; return d < 0 ? d + 360 : d; };
+export const snapAngle = (d: number) => { for (const k of [0, 90, 180, 270, 360]) if (Math.abs(d - k) <= 7) return k % 360; return d; };
+const signedDeg = (d: number) => { d = ((d % 360) + 360) % 360; return d > 180 ? d - 360 : d; };
+export function rotStop(sel, b, deg: number) { return deg * clampPath(k => previewXf(sel, about(b, Rm(rad(deg * k)))), Math.max(12, Math.ceil(Math.abs(deg) / 2))); }
+
+/* Rotar 90° / 180° desde el menú: alrededor del centro de lo seleccionado */
+export async function cmdRotateQuick(deg: number) {
+  const sel = await getSelection(); if (!sel.length) return;
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const e of sel) { const bb = entBounds(e); if (bb) { x0 = Math.min(x0, bb.minX); y0 = Math.min(y0, bb.minY); x1 = Math.max(x1, bb.maxX); y1 = Math.max(y1, bb.maxY); } }
+  if (!isFinite(x0)) return;
+  const b = { x: (x0 + x1) / 2, y: (y0 + y1) / 2 }, fin = rotStop(sel, b, deg);
+  if (Math.abs(fin - deg) > 1e-6) log(`Se frenó en ${fmt(fin)}° al tocar el retiro.`, 'warn');
+  applyAll(sel, about(b, Rm(rad(fin))));
+  log(`Rotado ${fmt(fin)}°.`, 'res');
 }
 
 export async function cmdScale() {
   const sel = await getSelection(); if (!sel.length) return;
   const b = await getPt('Precise punto base:'); if (b === 'ENTER') return;
-  let f = await ask('dist', 'Precise factor de escala (por ejemplo 2 o 0,5) o [Referencia]:', { base: b, keywords: ['R'], preview: p => { const k = dist(b, p); return k > 0 ? previewXf(sel, about(b, Sm(k, k))) : []; }, measure: p => ({ lines: [`Factor: ${fmtM(dist(b, p))}`] }) });
+  let f = await ask('dist', 'Precise factor de escala (por ejemplo 2 o 0,5) o [Referencia]:', { base: b, ghost: true, keywords: ['R'], preview: p => { const k = dist(b, p); return k > 0 ? previewXf(sel, about(b, Sm(k, k))) : []; }, measure: p => ({ lines: [`Factor: ${fmtM(dist(b, p))}`] }) });
   if (f === 'ENTER') return;
   if (f === 'R') {
     const r1 = await getPt('Precise primer punto de una medida conocida:'); if (r1 === 'ENTER') return;
@@ -60,14 +88,12 @@ export async function cmdScale() {
 export async function cmdMirror() {
   const sel = await getSelection(); if (!sel.length) return;
   const p1 = await getPt('Precise primer punto de la línea de simetría:'); if (p1 === 'ENTER') return;
-  const p2 = await getPt('Precise segundo punto de la línea de simetría:', { base: p1, preview: p => dist(p, p1) > 1e-9 ? previewXf(sel, mirrorM(p1, p)) : [] });
+  const p2 = await getPt('Precise segundo punto de la línea de simetría:', { base: p1, ghost: true, preview: p => dist(p, p1) > 1e-9 ? previewXf(sel, mirrorM(p1, p)) : [] });
   if (p2 === 'ENTER' || dist(p1, p2) < 1e-9) return;
   const r = await ask('string', '¿Borrar objetos de origen? [Sí/No] <No>:', { keywords: ['S', 'N'], kwAlias: { 'SI': 'S', 'SÍ': 'S', 'NO': 'N' } });
   const M = mirrorM(p1, p2);
-  for (const e of sel) {
-    if (r === 'S') applyXform(e, M);
-    else { const c = cloneEnt(e); if (applyXform(c, M)) app.model.entities.push(c); }
-  }
+  if (r === 'S') for (const e of sel) applyXform(e, M);
+  else app.model.entities.push(...regroup(sel.map(e => { const c = cloneEnt(e); return applyXform(c, M) ? c : null; }).filter(Boolean)));
   app.editCount++; requestDraw();
 }
 

@@ -7,11 +7,12 @@ import { requestDraw } from '../render/draw';
 import { log } from './commandline';
 
 let multiline = false;
-export function editTextDialog(initial: string, multi: boolean): Promise<string | null> {
+export function editTextDialog(initial: string, multi: boolean, title = 'Editar texto'): Promise<string | null> {
+  $('textDialogTitle').textContent = title;
   const dlg: HTMLDialogElement = $('textDialog'), ta: HTMLTextAreaElement = $('textDialogInput');
   multiline = multi;
   ta.value = initial; ta.rows = multi ? 4 : 1;
-  $('textDialogHint').textContent = multi ? 'Enter agrega un renglón. Ctrl+Enter acepta.' : 'Enter acepta. Esc cancela.';
+  $('textDialogHint').textContent = multi ? 'Enter agrega un renglón. Ctrl+Enter acepta.' : 'Enter acepta. Shift+Enter agrega un renglón. Esc cancela.';
   return new Promise(res => {
     const onClose = () => { dlg.removeEventListener('close', onClose); res(dlg.returnValue === 'ok' ? ta.value : null); };
     dlg.addEventListener('close', onClose);
@@ -22,7 +23,7 @@ export function editTextDialog(initial: string, multi: boolean): Promise<string 
 export function initTextDialog() {
   const dlg: HTMLDialogElement = $('textDialog'), ta: HTMLTextAreaElement = $('textDialogInput');
   ta.addEventListener('keydown', e => {
-    if (e.key === 'Enter' && (!multiline || e.ctrlKey)) { e.preventDefault(); dlg.close('ok'); }
+    if (e.key === 'Enter' && !e.shiftKey && (!multiline || e.ctrlKey)) { e.preventDefault(); dlg.close('ok'); }
   });
 }
 

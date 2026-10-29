@@ -1,3 +1,5 @@
+import { northEnts } from '../model/north';
+import { zoneInnerPrims } from '../model/zones';
 import { ellipsePts, splinePoints } from './curves';
 import { angOf, arcPt, dist, distSeg, inArc } from './math';
 import { xdimEnts } from '../model/xdim';
@@ -42,6 +44,8 @@ export function prims(e) {
     case 'SOLID': { const p = (e.points || []).filter(Boolean); const o = [p[0], p[1], p[3] || p[2], p[2]].filter(Boolean); return o.map((q, i) => ({ t: 'L', a: q, b: o[(i + 1) % o.length] })); }
     case '3DFACE': { const v = e.vertices || []; return v.map((q, i) => ({ t: 'L', a: q, b: v[(i + 1) % v.length] })); }
     case 'XDIM': case 'XDIMR': case 'XDIMA': return xdimEnts(e).flatMap(prims);
+    case 'XZONE': return zoneInnerPrims(e);
+    case 'XNORTH': return northEnts(e).slice(0, 2).flatMap(prims);
     default: return [];
   }
 }

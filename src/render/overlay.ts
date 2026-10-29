@@ -1,3 +1,6 @@
+import { violates } from '../model/zones';
+import { drawDrag } from '../edit/drag';
+import { drawDragMeasure } from './measure';
 import { drawMeasure } from './measure';
 import { drawGrips } from '../edit/grips';
 import { app } from '../core/app';
@@ -17,10 +20,28 @@ export function drawOverlay() {
   if (app.model && app.req && app.req.opts.preview && state.world) {
     let ents = [];
     try { ents = app.req.opts.preview(state.world) || []; } catch (err) { ents = []; }
-    if (ents.length) { app.G = octx; setWorld(octx); drawList(ents, null, null, 0); app.G = ctx; octx.globalAlpha = 1; }
+    if (ents.length) {
+      app.G = octx; setWorld(octx);
+      app.previewBad = ents.some(x => violates(x));
+      if (app.req.opts.ghost) {
+        // la copia (o el objeto movido) se ve punteada en celeste, en el lugar donde va a quedar
+        octx.setLineDash([7 / state.scale, 5 / state.scale]);
+        drawList(ents, null, null, 0, app.previewBad ? '#ff4d4d' : '#7cc4ff');
+      } else drawList(ents, null, null, 0, app.previewBad ? '#ff4d4d' : undefined);
+      app.G = ctx; octx.globalAlpha = 1; octx.setLineDash([]);
+    }
   }
+  if (!(app.model && app.req && app.req.opts.preview && state.world)) app.previewBad = false;
+  const dr = drawDrag(octx, setWorld, drawList);
+  if (app.flash && Date.now() < app.flash.until) { app.G = octx; setWorld(octx); octx.setLineDash([]); drawList(app.flash.ents, null, null, 0, '#ff3b30'); app.G = ctx; octx.globalAlpha = 1; }
   octx.setTransform(d, 0, 0, d, 0, 0);
   octx.setLineDash([]);
+  if (dr) drawDragMeasure(octx, dr.from, dr.to);
+  if ((app.previewBad || (dr && dr.bad)) && state.mouse) {
+    octx.font = '600 12.5px "Segoe UI", Arial, sans-serif';
+    const t = '⚠ Invade el retiro', w = octx.measureText(t).width + 14, x = state.mouse.x + 20, y = state.mouse.y - 34;
+    octx.fillStyle = '#b3261e'; octx.fillRect(x, y, w, 22); octx.fillStyle = '#fff'; octx.fillText(t, x + 7, y + 15.5);
+  }
   if (app.req && app.req.opts.base && state.world && app.req.opts.rubber !== false) {
     const a = toScreen(app.req.opts.base), b = toScreen(state.world);
     octx.strokeStyle = 'rgba(220,225,230,.7)'; octx.lineWidth = 1; octx.setLineDash([4, 4]);

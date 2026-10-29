@@ -1,4 +1,5 @@
 import './style.css';
+import { cancelDrag, dragDown, dragMove, dragUp } from './edit/drag';
 import { closeContextMenu, initContextMenu, openContextMenu } from './ui/context-menu';
 import { offerRecovery, startAutosave, autosaveNow } from './io/autosave';
 import { gripAt } from './edit/grips';
@@ -45,7 +46,7 @@ $('fileInput').addEventListener('change', e => { const f = e.target.files[0]; if
 
 input.addEventListener('keydown', e => {
   // la barra espaciadora confirma, como en AutoCAD, salvo después de X o Y ("X 2500") o dentro de un texto
-  const typingXY = /^[xy]\s*$/i.test(input.value) && app.req && ['point', 'dist'].includes(app.req.kind);
+  const typingXY = (/^l?[xy]/i.test(input.value) && app.req && ['point', 'dist'].includes(app.req.kind)) || (/^l[xy]\s*$/i.test(input.value) && !app.req);
   if (e.key === 'Enter' || (e.key === ' ' && !typingXY && !(app.req && app.req.kind === 'string'))) { e.preventDefault(); handleSubmit(); }
 });
 
@@ -95,7 +96,7 @@ ov.addEventListener('pointerdown', e => {
     if (app.req.kind === 'point') { finish({ x: w.x, y: w.y }); return; }
     if (!app.req.opts.base) return;
     if (app.req.kind === 'dist') finish(dist(w, app.req.opts.base));
-    else finish(norm(angOf(app.req.opts.base, w)) * 180 / Math.PI);
+    else { const a = norm(angOf(app.req.opts.base, w)) * 180 / Math.PI; finish(app.req.opts.angleSnap ? app.req.opts.angleSnap(a) : a); }
     return;
   }
   if (app.req && app.req.kind === 'entity') {
@@ -106,6 +107,12 @@ ov.addEventListener('pointerdown', e => {
   if (app.req && app.req.kind !== 'select') return;
   if (app.winStart) { finishWindow(p, e.shiftKey); return; }
   const hit = pickAt(toWorld(p.x, p.y));
+  if (hit && !app.req && !e.shiftKey) {
+    // clic sobre un objeto: queda seleccionado (con su grupo) y se puede arrastrar para moverlo
+    if (!state.sel.has(hit)) setSel([hit], 'add');
+    dragDown(p.x, p.y);
+    return;
+  }
   if (hit) { setSel([hit], e.shiftKey ? 'remove' : 'add'); return; }
   app.winStart = p; app.winDown = p;
 });
@@ -114,16 +121,18 @@ ov.addEventListener('pointermove', e => {
   const p = localPos(e);
   if (app.pan) { state.cx -= (p.x - app.pan.x) / state.scale; state.cy += (p.y - app.pan.y) / state.scale; app.pan = p; requestDraw(); }
   updateCursor(p.x, p.y);
+  dragMove(p.x, p.y);
 });
 
 ov.addEventListener('pointerup', e => {
   const p = localPos(e);
   if (e.button === 1) { app.pan = null; return; }
+  if (dragUp(p.x, p.y, e.ctrlKey)) return;
   if (app.winStart && app.winDown && dist(p, app.winDown) > 6) finishWindow(p, e.shiftKey);
   app.winDown = null;
 });
 
-ov.addEventListener('pointercancel', () => { app.pan = null; app.winDown = null; });
+ov.addEventListener('pointercancel', () => { app.pan = null; app.winDown = null; cancelDrag(); });
 
 ov.addEventListener('pointerleave', () => { if (!app.pan) { state.mouse = null; state.world = null; updateCoords(); drawOverlay(); } });
 

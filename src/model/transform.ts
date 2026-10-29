@@ -1,3 +1,5 @@
+import { northEnts } from './north';
+import { xformZone } from './zones';
 import { app } from '../core/app';
 import { SUPPORTED, TAU } from '../core/constants';
 import { I, angOf, deg, detM, mul, rad, xf, xfv } from '../geom/math';
@@ -57,11 +59,13 @@ export function applyXform(e, M) {
     }
     case 'DIMENSION': e._xf = mul(M, e._xf || I); break;
     case 'XIMAGE': P(e.p); e.u = xfv(M, e.u); e.v = xfv(M, e.v); break;
-    case 'XDIMR': P(e.c); P(e.pos); e.r *= s; e.h *= s; break;
+    case 'XZONE': xformZone(e, p => xf(M, p)); break;
+    case 'XNORTH': { P(e.p); const d = xfv(M, { x: Math.cos(e.ang), y: Math.sin(e.ang) }); e.ang = Math.atan2(d.y, d.x); e.size *= s; break; }
+    case 'XDIMR': P(e.c); P(e.pos); e.r *= s; e.h *= s; if (e.tick) e.tick *= s; break;
     case 'XDIMA': {
       const ps = xf(M, { x: e.P.x + e.rad * Math.cos(e.a0), y: e.P.y + e.rad * Math.sin(e.a0) });
       const pe = xf(M, { x: e.P.x + e.rad * Math.cos(e.a1), y: e.P.y + e.rad * Math.sin(e.a1) });
-      P(e.P); e.rad *= s; e.h *= s;
+      P(e.P); e.rad *= s; e.h *= s; if (e.tick) e.tick *= s;
       let a0 = Math.atan2(ps.y - e.P.y, ps.x - e.P.x), a1 = Math.atan2(pe.y - e.P.y, pe.x - e.P.x);
       if (refl) [a0, a1] = [a1, a0];
       e.a0 = a0; e.a1 = a1; break;
@@ -79,7 +83,7 @@ export function applyXform(e, M) {
     case 'XDIM': {
       [e.p1, e.p2, e.pos].forEach(P);
       const d = xfv(M, { x: Math.cos(e.ang), y: Math.sin(e.ang) });
-      e.ang = Math.atan2(d.y, d.x); e.h *= s; break;
+      e.ang = Math.atan2(d.y, d.x); e.h *= s; if (e.tick) e.tick *= s; break;
     }
     default: return false;
   }
@@ -107,6 +111,7 @@ export function explodeEnt(e) {
     });
   }
   if (e.type === 'HATCH') { const st = c => { c.layer = e.layer; if (e.colorIndex !== undefined) c.colorIndex = e.colorIndex; if (e.color !== undefined) c.color = e.color; return c; }; return hatchSegs(e).segs.map(s => st({ type: 'LINE', vertices: [{ x: s[0], y: s[1] }, { x: s[2], y: s[3] }] })); }
+  if (e.type === 'XNORTH') return northEnts(e).map(x => Object.assign(structuredClone(x), { layer: e.layer, colorIndex: e.colorIndex, color: e.color }));
   if (e.type === 'XDIM' || e.type === 'XDIMR' || e.type === 'XDIMA') return xdimEnts(e).map(x => style(structuredClone(x)));
   return null;
 }

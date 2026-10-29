@@ -7,11 +7,12 @@ import { mkPoly, styleNew } from '../model/factory';
 import { addEntity } from '../model/undo';
 import { ask, getPt, log } from '../ui/commandline';
 import { polyVerts } from '../geom/prims';
+const dimH = () => state.dimH || state.textH * 0.8;
 
 export async function cmdDim(aligned) {
   const p1 = await getPt(`${aligned ? 'ACOTALINEADA' : 'ACOTALINEAL'} Precise origen de la primera línea de referencia:`); if (p1 === 'ENTER') return;
   const p2 = await getPt('Precise origen de la segunda línea de referencia:', { base: p1 }); if (p2 === 'ENTER' || dist(p1, p2) < 1e-9) return;
-  const h = state.textH * 0.8;
+  const h = dimH();
   const mk = pos => {
     let ang;
     if (aligned) ang = angOf(p1, p2);
@@ -25,7 +26,7 @@ export async function cmdDim(aligned) {
 
 /* Cota alineada entre dos puntos (la usa DIST para dibujar la medida en el plano) */
 function alignedDim(a, b, pos) {
-  return styleNew({ type: 'XDIM', p1: { x: a.x, y: a.y }, p2: { x: b.x, y: b.y }, pos: { x: pos.x, y: pos.y }, ang: angOf(a, b), h: state.textH * 0.8 });
+  return styleNew({ type: 'XDIM', p1: { x: a.x, y: a.y }, p2: { x: b.x, y: b.y }, pos: { x: pos.x, y: pos.y }, ang: angOf(a, b), h: dimH() });
 }
 
 export async function cmdDist() {
@@ -78,7 +79,7 @@ export async function cmdArea() {
   const u = app.model.units ? UNITS[app.model.units] : '';
   log(`Área = ${fmt(A)}${u ? ' ' + u + '²' : ''}   Perímetro = ${fmt(P)}${u ? ' ' + u : ''}`, 'res');
   const t = areaTexts(A, P);
-  const mk = p => styleNew({ type: 'MTEXT', text: `${t.area}\\P${t.perim}`, position: { x: p.x, y: p.y }, height: state.textH * 0.8, attachmentPoint: 5, rotation: 0 });
+  const mk = p => styleNew({ type: 'MTEXT', text: `${t.area}\\P${t.perim}`, position: { x: p.x, y: p.y }, height: dimH(), attachmentPoint: 5, rotation: 0 });
   const pos = await getPt('Precise dónde escribir la superficie en el plano, o Enter para no escribirla:', { rubber: false, preview: p => [mk(p)] });
   if (pos === 'ENTER') return;
   addEntity(mk(pos));
@@ -91,7 +92,7 @@ export async function cmdDimRadial(dia: boolean) {
   if (r === 'ENTER') return;
   const e = r.e;
   if (e.type !== 'CIRCLE' && e.type !== 'ARC') { log('Hay que elegir un arco o un círculo.', 'warn'); return; }
-  const mk = p => styleNew({ type: 'XDIMR', c: { x: e.center.x, y: e.center.y }, r: e.radius, pos: { x: p.x, y: p.y }, dia, h: state.textH * 0.8 });
+  const mk = p => styleNew({ type: 'XDIMR', c: { x: e.center.x, y: e.center.y }, r: e.radius, pos: { x: p.x, y: p.y }, dia, h: dimH() });
   const pos = await getPt('Precise ubicación de la cota:', { rubber: false, preview: p => [mk(p)] });
   if (pos === 'ENTER') return;
   addEntity(mk(pos));
@@ -124,7 +125,7 @@ export async function cmdDimAngular() {
     const ap = norm(angOf(P, p));
     let a0 = rays[3], a1 = rays[0];
     for (let i = 0; i < 4; i++) { const s = rays[i], e = rays[(i + 1) % 4]; if (norm(ap - s) <= norm(e - s)) { a0 = s; a1 = e; break; } }
-    return styleNew({ type: 'XDIMA', P: { ...P }, a0, a1, rad: Math.max(dist(P, p), 1e-6), h: state.textH * 0.8 });
+    return styleNew({ type: 'XDIMA', P: { ...P }, a0, a1, rad: Math.max(dist(P, p), 1e-6), h: dimH() });
   };
   const pos = await getPt('Precise ubicación del arco de cota:', { rubber: false, preview: p => [mk(p)] });
   if (pos === 'ENTER') return;

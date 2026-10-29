@@ -27,6 +27,8 @@
 <nav id="tools" aria-label="Herramientas">
   <h3>Dibujo</h3>
   <button data-cmd="L">Línea <kbd>L</kbd></button>
+  <button data-cmd="LX" title="Línea horizontal con medida exacta, por ejemplo LX 37,5M">Línea horiz. <kbd>LX</kbd></button>
+  <button data-cmd="LY" title="Línea vertical con medida exacta, por ejemplo LY 40M">Línea vert. <kbd>LY</kbd></button>
   <button data-cmd="PL">Polilínea <kbd>PL</kbd></button>
   <button data-cmd="REC">Rectángulo <kbd>REC</kbd></button>
   <button data-cmd="C">Círculo <kbd>C</kbd></button>
@@ -52,6 +54,7 @@
   <button data-cmd="DDI">Cota diámetro <kbd>DDI</kbd></button>
   <button data-cmd="DAN">Cota angular <kbd>DAN</kbd></button>
   <button data-cmd="H">Sombreado <kbd>H</kbd></button>
+  <button data-cmd="NORTE" title="Rosa de los vientos (N, E, S, O)">Norte N-E-S-O <kbd>NORTE</kbd></button>
   <h3>Referencia</h3>
   <button data-cmd="IMAGEN" title="Poner una foto, un escaneo o un PDF de fondo">Imagen / PDF <kbd>IM</kbd></button>
   <h3>Consultar</h3>
@@ -104,7 +107,7 @@
 <div id="colorMenu" role="menu"></div>
 <dialog id="textDialog">
   <form method="dialog">
-    <label for="textDialogInput">Editar texto</label>
+    <label for="textDialogInput" id="textDialogTitle">Editar texto</label>
     <textarea id="textDialogInput" rows="3"></textarea>
     <p id="textDialogHint"></p>
     <div class="dlg-actions"><button value="cancel">Cancelar</button><button value="ok" class="primary">Aceptar</button></div>

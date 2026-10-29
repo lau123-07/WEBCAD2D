@@ -120,3 +120,7 @@ footer .tog span{color:var(--muted);margin-left:4px}
 #ctxMenu .sep{height:1px;background:var(--line);margin:4px 2px}
 #props.flash{animation:flash 1s ease-out}
 @keyframes flash{0%{background:#2b4558}100%{background:transparent}}
+
+/* el panel de propiedades se desplaza si tiene muchos campos, sin quedar cortado */
+#props{flex:0 1 auto;overflow:auto;max-height:62%;min-height:120px}
+#layers{min-height:90px}

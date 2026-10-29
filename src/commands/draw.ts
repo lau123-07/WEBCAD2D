@@ -1,3 +1,9 @@
+import { editTextDialog } from '../ui/text-dialog';
+import { newGroupId } from '../model/groups';
+import { nice } from '../geom/math';
+import { autoDim, parseMeters } from './line-xy';
+import { fmtM } from '../render/measure';
+import { drawingUnitMm } from '../ui/commandline';
 import { app } from '../core/app';
 import { measureCircle, measureRect, measureSeg } from '../render/measure';
 import { state } from '../core/state';
@@ -39,10 +45,43 @@ export async function cmdPline() {
 
 export const rectPts = (a, b) => [a, { x: b.x, y: a.y }, b, { x: a.x, y: b.y }];
 
-export async function cmdRect() {
-  const a = await getPt('RECTANG Precise primera esquina:');
+/* "LX 14000MM LY 37000MM" (en cualquier orden; sin unidad = metros) → { w, h } */
+export function parseRecSizes(text: string) {
+  const t = String(text).replace(/\s+/g, ' ').trim();
+  const re = /L([XY])\s*([+-]?(?:\d+(?:[.,]\d+)?|[.,]\d+)\s*(?:mm|cm|km|m)?)/gi;
+  let w = null, h = null, m;
+  while ((m = re.exec(t))) { const v = parseMeters(m[2]); if (v === null) return null; if (m[1].toUpperCase() === 'X') w = v; else h = v; }
+  if (w === null || h === null || !w || !h) return null;
+  if (t.replace(re, '').trim()) return null;
+  return { sizes: { w, h } };
+}
+
+/* Rectángulo de medidas exactas (sin cotas: se agregan a mano con DLI) */
+function addRectWithDims(a, w, h) {
+  addEntity(mkPoly(rectPts(a, { x: a.x + w, y: a.y + h }), true));
+  const m = v => fmtM(Math.abs(v) * drawingUnitMm() / 1000);
+  log(`Rectángulo de ${m(w)} × ${m(h)} m.`, 'res');
+}
+
+export async function cmdRect(args: string[] = []) {
+  let sizes = null;
+  if (args.length) {
+    const r = parseRecSizes(args.join(' '));
+    if (!r) { log('Medidas no válidas. Ejemplo: REC LX 14000MM LY 37000MM  (o en metros: REC LX 14 LY 37)', 'err'); return; }
+    sizes = r.sizes;
+  }
+  const preview = q => sizes ? [mkPoly(rectPts(q, { x: q.x + sizes.w, y: q.y + sizes.h }), true)] : [];
+  let a = await getPt(sizes ? 'RECTANG Precise la primera esquina:' : 'RECTANG Precise primera esquina o escriba las medidas (LX 14m LY 37m):',
+    { parse: sizes ? undefined : parseRecSizes, preview, measure: sizes ? q => measureRect(q, { x: q.x + sizes.w, y: q.y + sizes.h }) : undefined });
   if (a === 'ENTER') return;
-  let b = await getPt('Precise esquina opuesta o [Dimensiones] (por ejemplo @500,300):', { base: a, rubber: false, keywords: ['D'], preview: p => [mkPoly(rectPts(a, p), true)], measure: p => measureRect(a, p) });
+  if (a.sizes) {
+    sizes = a.sizes;
+    a = await getPt('Precise la primera esquina del rectángulo:', { preview, measure: q => measureRect(q, { x: q.x + sizes.w, y: q.y + sizes.h }) });
+    if (a === 'ENTER') return;
+  }
+  if (sizes) { addRectWithDims(a, sizes.w, sizes.h); return; }
+  let b = await getPt('Precise esquina opuesta, escriba las medidas (LX 14m LY 37m) o [Dimensiones]:', { base: a, rubber: false, keywords: ['D'], parse: parseRecSizes, preview: p => [mkPoly(rectPts(a, p), true)], measure: p => measureRect(a, p) });
+  if (b && b.sizes) { addRectWithDims(a, b.sizes.w, b.sizes.h); return; }
   if (b === 'D') {
     const w = await ask('number', `Ancho del rectángulo <${fmt(app.recW || state.textH * 20)}>:`);
     const wv = w === 'ENTER' ? (app.recW || state.textH * 20) : w;
@@ -53,7 +92,9 @@ export async function cmdRect() {
     const corner = p => ({ x: a.x + (p.x >= a.x ? wv : -wv), y: a.y + (p.y >= a.y ? hv : -hv) });
     const s = await getPt('Hacé clic para elegir hacia qué lado va el rectángulo:', { base: a, rubber: false, preview: p => [mkPoly(rectPts(a, corner(p)), true)], measure: p => measureRect(a, corner(p)) });
     if (s === 'ENTER') return;
-    b = corner(s);
+    const c = corner(s);
+    addRectWithDims(a, c.x - a.x, c.y - a.y);
+    return;
   }
   if (b === 'ENTER' || Math.abs(b.x - a.x) < 1e-9 || Math.abs(b.y - a.y) < 1e-9) return;
   addEntity(mkPoly(rectPts(a, b), true));
@@ -92,14 +133,22 @@ export async function cmdArc() {
 }
 
 export async function cmdText() {
-  const p = await getPt('TEXTO Precise punto inicial del texto:'); if (p === 'ENTER') return;
-  let h = await ask('dist', `Precise altura <${fmt(state.textH)}>:`, { base: p });
-  if (h === 'ENTER') h = state.textH;
-  if (!(h > 0)) { log('La altura tiene que ser mayor que cero.', 'err'); return; }
-  state.textH = h;
-  let a = await ask('angle', 'Precise ángulo de rotación del texto <0>:', { base: p });
-  if (a === 'ENTER') a = 0;
-  const s = await ask('string', 'Escriba el texto:');
-  if (s === 'ENTER' || !s.trim()) return;
-  addEntity(styleNew({ type: 'TEXT', text: s, textHeight: h, startPoint: { x: p.x, y: p.y }, endPoint: { x: p.x, y: p.y }, rotation: a, halign: 0, valign: 0 }));
+  let rot = app.textRot || 0;
+  const sample = q => [styleNew({ type: 'TEXT', text: 'Texto', textHeight: state.textH, startPoint: { x: q.x, y: q.y }, endPoint: { x: q.x, y: q.y }, rotation: rot, halign: 0, valign: 0 })];
+  let p;
+  while (true) {
+    p = await getPt(`TEXTO Hacé clic donde va el texto o [Altura/Rotación] (altura ${fmt(state.textH)}):`, { keywords: ['A', 'R'], ghost: true, preview: sample });
+    if (p === 'ENTER') return;
+    if (p === 'A') { const h = await ask('number', `Altura del texto <${fmt(state.textH)}>:`); if (h !== 'ENTER') { if (h > 0) state.textH = h; else log('La altura tiene que ser mayor que cero.', 'err'); } continue; }
+    if (p === 'R') { const a = await ask('number', `Ángulo del texto en grados <${fmt(rot)}>:`); if (a !== 'ENTER') { rot = a; app.textRot = a; } continue; }
+    break;
+  }
+  const s = await editTextDialog('', false, 'Escribí el texto');
+  if (s === null || !s.trim()) return;
+  if (/\r?\n/.test(s)) {
+    addEntity(styleNew({ type: 'MTEXT', text: s.replace(/\\/g, '\\\\').replace(/\r?\n/g, '\\P'), position: { x: p.x, y: p.y + state.textH }, height: state.textH, attachmentPoint: 1, rotation: rot }));
+  } else {
+    addEntity(styleNew({ type: 'TEXT', text: s, textHeight: state.textH, startPoint: { x: p.x, y: p.y }, endPoint: { x: p.x, y: p.y }, rotation: rot, halign: 0, valign: 0 }));
+  }
+  log('Texto agregado. Para moverlo, arrastralo con el mouse; doble clic para editarlo.', 'res');
 }

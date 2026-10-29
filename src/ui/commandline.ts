@@ -32,6 +32,7 @@ export function ask(kind: string, prompt: string, opts: any = {}): Promise<any> 
   return new Promise<any>((resolve, reject) => {
     app.req = { kind, prompt, opts, resolve, reject };
     setPrompt(prompt);
+    if (opts.ghost) requestDraw();
     if (state.mouse) updateCursor(state.mouse.x, state.mouse.y); else drawOverlay();
   });
 }
@@ -45,6 +46,7 @@ export function finish(v: any, echo?: string) {
   const shown = echo !== undefined ? echo : v === 'ENTER' ? '' : (v && typeof v === 'object' && 'x' in v) ? `${fmt(v.x)},${fmt(v.y)}` : (typeof v === 'number' ? fmt(v) : (v && v.e ? '' : String(v)));
   if (r.kind !== 'select' && r.kind !== 'entity') log(`${r.prompt} ${shown}`);
   state.snapPt = null;
+  if (r.opts.ghost) requestDraw();
   r.resolve(v);
   drawOverlay();
 }
@@ -115,6 +117,7 @@ export function parsePoint(v, base) {
 export function processInput(v) {
   const r = app.req, V = v.toUpperCase();
   if (!v) { finish('ENTER'); return; }
+  if (r.opts.parse) { const x = r.opts.parse(v); if (x) { finish(x, v); return; } }
   if (r.opts.keywords) {
     const k = r.opts.keywords.find(k => k === V || (r.opts.kwAlias && r.opts.kwAlias[V] === k));
     if (k) { finish(k); return; }
