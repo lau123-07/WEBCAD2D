@@ -1,4 +1,5 @@
 import './style.css';
+import { closeContextMenu, initContextMenu, openContextMenu } from './ui/context-menu';
 import { offerRecovery, startAutosave, autosaveNow } from './io/autosave';
 import { gripAt } from './edit/grips';
 import { editTextEntity, initTextDialog } from './ui/text-dialog';
@@ -31,6 +32,7 @@ $('tgOrtho').addEventListener('click', () => setToggle('ortho', !state.ortho));
 $('tgLw').addEventListener('click', () => setToggle('lwDisplay', !state.lwDisplay));
 $('tgDyn').addEventListener('click', () => setToggle('dyn', !state.dyn));
 initTextDialog();
+initContextMenu();
 $('tgOsnap').addEventListener('click', () => setToggle('osnap', !state.osnap));
 
 document.querySelectorAll<HTMLElement>('[data-cmd]').forEach(b => b.addEventListener('click', () => { runCommand(b.dataset.cmd); input.focus({ preventScroll: true }); }));
@@ -132,7 +134,15 @@ ov.addEventListener('dblclick', e => {
   const p = localPos(e), hit = pickAt(toWorld(p.x, p.y));
   if (hit && (hit.type === 'TEXT' || hit.type === 'MTEXT')) editTextEntity(hit);
 });
-ov.addEventListener('contextmenu', e => { e.preventDefault(); if (app.winStart) { app.winStart = null; drawOverlay(); return; } handleSubmit(); });
+ov.addEventListener('contextmenu', e => {
+  e.preventDefault();
+  if (app.winStart) { app.winStart = null; drawOverlay(); return; }
+  // durante un comando, el clic derecho es Enter (como en AutoCAD); si no, abre el menú
+  if (app.req || app.running) { handleSubmit(); return; }
+  const p = localPos(e);
+  openContextMenu(e.clientX, e.clientY, p.x, p.y);
+});
+ov.addEventListener('wheel', () => closeContextMenu(), { passive: true });
 
 ov.addEventListener('wheel', e => {
   e.preventDefault();

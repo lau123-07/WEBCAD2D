@@ -110,3 +110,13 @@ footer .tog span{color:var(--muted);margin-left:4px}
 #plotDialog .hint{color:var(--muted);font-size:12px;margin:10px 0}
 #autosaveInfo{color:var(--muted)}
 @media (max-width:720px){.plot-grid{grid-template-columns:1fr}}
+
+#ctxMenu{position:fixed;z-index:20;min-width:220px;background:var(--panel-2);border:1px solid var(--line);border-radius:5px;padding:4px;box-shadow:0 6px 18px #0008;display:grid}
+#ctxMenu button{display:flex;justify-content:space-between;align-items:center;gap:18px;border:0;background:transparent;padding:6px 10px;text-align:left;border-radius:3px}
+#ctxMenu button:hover:not(:disabled),#ctxMenu button:focus-visible{background:#2b4558;outline:none}
+#ctxMenu button:disabled{opacity:.4}
+#ctxMenu button.danger span{color:var(--err)}
+#ctxMenu kbd{font:11px Consolas,"Cascadia Mono",monospace;color:var(--muted)}
+#ctxMenu .sep{height:1px;background:var(--line);margin:4px 2px}
+#props.flash{animation:flash 1s ease-out}
+@keyframes flash{0%{background:#2b4558}100%{background:transparent}}

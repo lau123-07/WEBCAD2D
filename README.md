@@ -50,6 +50,10 @@ Al dibujar o mover, un cartel junto al cursor muestra largo y ángulo (líneas),
 
 Medidas exactas al pedir un punto: `X 2500` = horizontal, `Y 3m` = vertical (sin signo va hacia el lado del mouse; con `-` fuerza izquierda o abajo). Se aceptan unidades `mm`, `cm`, `m` y `km`, con coma o punto decimal (`2,5m`, `250cm`). Un largo con unidad sin X/Y va en la dirección del mouse.
 
+## Menú del clic derecho
+
+Con algo seleccionado (o haciendo clic derecho sobre un objeto): Editar texto, Mover, Copiar, Rotar, Escalar, Espejo, Descomponer, Copiar al portapapeles, Propiedades, Deseleccionar y Borrar. En un lugar vacío: Repetir el último comando, Pegar, Deshacer, Rehacer, Seleccionar todo y Ver todo. Durante un comando, el clic derecho equivale a Enter.
+
 ## Autoguardado e impresión
 
 - **Autoguardado:** cada 5 minutos, si hay cambios sin guardar, se guarda una copia dentro del navegador. Al volver a abrir el editor se ofrece recuperarla. `AUTOGUARDADO` cambia los minutos (0 lo desactiva) y `RECUPERAR` la carga cuando quieras. La copia se borra al guardar el DXF.
